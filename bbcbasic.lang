@@ -4,7 +4,7 @@ comment start "REM"
 
 string delim "\"" "\""
 
-keyword="ABS|ACS|ADVAL|AND|ASC|ASN|ATN|BGET|BPUT|BY|CALL|CASE|CHAIN",
+keyword = "ABS|ACS|ADVAL|AND|ASC|ASN|ATN|BGET|BPUT|BY|CALL|CASE|CHAIN",
 "CHR$|CIRCLE|CLEAR|CLG|CLOSE|CLS|COLOR|COLOUR|COS|COUNT|DATA|DEF|DEG",
 "DIM|DIV|DRAW|ELLIPSE|ELSE|END|ENDCASE|ENDIF|ENDPROC|ENDWHILE|ENVELOPE",
 "EOF|EOR|ERL|ERR|ERROR|EVAL|EXIT|EXP|EXT|FILL|FOR|GCOL|GET|GET$|GOSUB",
@@ -16,9 +16,9 @@ keyword="ABS|ACS|ADVAL|AND|ASC|ASN|ATN|BGET|BPUT|BY|CALL|CASE|CHAIN",
 "SYS|TAB|TAN|THEN|TIME|TINT|TO|TRACE|UNTIL|USR|VAL|VDU|VPOS|WAIT|WHEN",
 "WHILE|WIDTH"
 
-function='(PROC|FN)([[:alpha:]]|_)[[:word:]]*(?=[[:blank:]]*\()'
+function = '(PROC|FN)([[:alpha:]]|_)[[:word:]]*(?=[[:blank:]]*\()'
 
 include "symbols.lang"
 
-include "number.lang"
+number = '\<[+-]?((&[[:xdigit:]]+)|(([[:digit:]]*\.)?([[:digit:]]+([E][+-]?[[:digit:]]+)?)?))\>'
 
