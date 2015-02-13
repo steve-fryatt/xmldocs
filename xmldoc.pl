@@ -9,6 +9,7 @@ use File::Temp qw/ tempfile tempdir /;
 my $filename = "wimp.xml";
 
 my $parser = XML::LibXML->new();
+$parser->expand_entities(0);
 my $index = $parser->parse_file($filename);
 
 my $manual_title = $index->findvalue('/manual/title');
@@ -119,13 +120,37 @@ sub process_text {
 		'variable' => 'code'
 	);
 
+	my %entities = (
+		'ldquo' => '&ldquo;',
+		'lsquo' => '&lsquo;',
+		'minus' => '&minus;',
+		'nbsp' => '&nbsp;',
+		'ndash' => '&ndash;',
+		'rdquo' => '&rdquo;',
+		'rsquo' => '&rsquo;',
+		'times' => '&times;'
+	);
+
+
 	print "<p class=\"doc\">";
 
 	foreach my $chunk ($text->childNodes()) {
-		if ($chunk->nodeName() ne "#text" && exists $styles{$chunk->nodeName()}) {
-			print "<span class=\"", $styles{$chunk->nodeName()}, "\">", $chunk->to_literal, "</span>";
-		} else {
+		if ($chunk->nodeType() == XML_TEXT_NODE) {
 			print $chunk->to_literal;
+		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
+			if (exists $styles{$chunk->nodeName()}) {
+				print "<span class=\"", $styles{$chunk->nodeName()}, "\">", $chunk->to_literal, "</span>";
+			} else {
+				print $chunk->to_literal;
+			}
+		} elsif ($chunk->nodeType() == XML_ENTITY_REF_NODE) {
+			if (exists $entities{$chunk->nodeName()}) {
+				print $entities{$chunk->nodeName()};
+			} else {
+				print $chunk->to_literal;
+			}
+		} else {
+			print "(unknown chunk ", $chunk->nodeType(), ")";
 		}
 	}
 
@@ -149,3 +174,4 @@ sub process_code {
 
 	print "<div class=\"codeblock\">", $html, "</div>\n\n";
 }
+
