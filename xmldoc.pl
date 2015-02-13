@@ -98,7 +98,7 @@ sub process_section {
 	}
 
 	foreach my $block ($section->childNodes()) {
-		if ($block->nodeName() eq "para") {
+		if ($block->nodeName() eq "p") {
 			process_text($block);
 		} elsif ($block->nodeName() eq "code") {
 			process_code($block);
@@ -110,7 +110,26 @@ sub process_section {
 sub process_text {
 	my ($text) = @_;
 
-	print "<p>", $text->to_literal, "</p>\n\n";
+	my %styles = (
+		'const' => 'code',
+		'event' => 'name',
+		'function' => 'code',
+		'name' => 'name',
+		'swi' => 'name',
+		'variable' => 'code'
+	);
+
+	print "<p class=\"doc\">";
+
+	foreach my $chunk ($text->childNodes()) {
+		if ($chunk->nodeName() ne "#text" && exists $styles{$chunk->nodeName()}) {
+			print "<span class=\"", $styles{$chunk->nodeName()}, "\">", $chunk->to_literal, "</span>";
+		} else {
+			print $chunk->to_literal;
+		}
+	}
+
+	print "</p>\n\n";
 }
 
 
