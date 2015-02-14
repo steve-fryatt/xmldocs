@@ -75,6 +75,14 @@ sub write_footer {
 }
 
 
+sub write_breadcrumb {
+	my ($title, $chapter, $file) = @_;
+
+	print $file "<p class=\"breadcrumb\">[ <a href=\"../\" class=\"breadcrumb\">Home</a>\n";
+	print $file "| <a href=\"index.html\" class=\"breadcrumb\">", $title, "</a>\n";
+	print $file "| <span class=\"breadcrumb-here\">", $chapter, "</span> ]</p>\n";
+}
+
 sub make_date {
 	my %suffixes = ( 1 => 'st', 2 => 'nd', 3 => 'rd', 21 => 'st', 22 => 'nd', 23 => 'rd', 31 => 'st' );
 
@@ -110,17 +118,30 @@ sub process_chapter {
 
 	print $file "<div id=\"content\">\n";
 
-	print $file "<p class=\"breadcrumb\">[ <a href=\"../\" class=\"breadcrumb\">Home</a>\n";
-	print $file "| <a href=\"index.html\" class=\"breadcrumb\">", $manual_title, "</a>\n";
-	print $file "| <span class=\"breadcrumb-here\">", $title, "</span> ]</p>\n";
+	write_breadcrumb($manual_title, $title, $file);
 
 	foreach my $section ($chapter->findnodes('./section')) {
 		process_section($section, $file);
 	}
 
-	print $file "<p class=\"breadcrumb\">[ <a href=\"../\" class=\"breadcrumb\">Home</a>\n";
-	print $file "| <a href=\"index.html\" class=\"breadcrumb\">", $manual_title, "</a>\n";
-	print $file "| <span class=\"breadcrumb-here\">", $title, "</span> ]</p>\n";
+	my $previous = find_previous_chapter($chapter);
+	my $next = find_next_chapter($chapter);
+
+	if (defined $previous || defined $next) {
+		print $file "<p class=\"navigate\">";
+		if (defined $previous) {
+			print $file "Previous: <a href=\"", $previous->findvalue('./filename'), "\">", $previous->findvalue('./title'), "</a>";
+		}
+		if (defined $previous && defined $next) {
+			print $file " | ";
+		}
+		if (defined $next) {
+			print $file "Next: <a href=\"", $next->findvalue('./filename'), "\">", $next->findvalue('./title'), "</a>";
+		}
+		print $file "</p>\n\n";
+	}
+
+	write_breadcrumb($manual_title, $title, $file);
 
 	print $file "</div>\n";
 
@@ -129,6 +150,30 @@ sub process_chapter {
 	close($file);
 }
 
+
+sub find_previous_chapter {
+	my ($chapter) = @_;
+
+	my $previous = $chapter->previousNonBlankSibling();
+
+	while (defined $previous && ($previous->nodeName() ne "chapter" || $previous->nodeType() != XML_ELEMENT_NODE)) {
+		$previous = $previous->previousNonBlankSibling();
+	}
+
+	return $previous;
+}
+
+sub find_next_chapter {
+	my ($chapter) = @_;
+
+	my $next = $chapter->nextNonBlankSibling();
+
+	while (defined $next && ($next->nodeName() ne "chapter" || $next->nodeType() != XML_ELEMENT_NODE)) {
+		$next = $next->nextNonBlankSibling();
+	}
+
+	return $next;
+}
 
 sub process_section {
 	my ($section, $file) = @_;
