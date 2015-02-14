@@ -413,6 +413,7 @@ sub process_text {
 		'const' => 'code',
 		'event' => 'name',
 		'function' => 'code',
+		'message' => 'name',
 		'name' => 'name',
 		'swi' => 'name',
 		'variable' => 'code'
