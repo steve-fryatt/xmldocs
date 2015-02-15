@@ -192,13 +192,12 @@ sub get_date {
 sub link_document {
 	my ($manual) = @_;
 
-	my $chapter_number = 1;
+	my $number = 1;
 
 	foreach my $chapter ($manual->findnodes('./manual/index|./manual/chapter')) {
-		if ($chapter->nodeName() eq "index") {
-			my $number = 0;
-		} elsif ($chapter->nodeName() eq "chapter") {
-			my $number = $chapter_number++;
+		my $chapter_number = 0;
+		if ($chapter->nodeName() eq "chapter") {
+			$chapter_number = $number++;
 		}
 
 		$chapter->setAttribute("name", "Chapter " . $chapter_number);
@@ -514,6 +513,8 @@ sub process_text {
 				print $file "<span class=\"", $styles{$chunk->nodeName()}, "\">", $chunk->to_literal, "</span>";
 			} elsif (exists $tags{$chunk->nodeName()}) {
 				print $file "<", $tags{$chunk->nodeName()}, ">", $chunk->to_literal, "</", $tags{$chunk->nodeName()}, ">";
+			} elsif ($chunk->nodeName() eq "reference") {
+				print $file create_reference($chunk->findvalue('./@id'));
 			} else {
 				print $file $chunk->to_literal;
 			}
@@ -529,6 +530,20 @@ sub process_text {
 	}
 }
 
+
+sub create_reference {
+	my ($id) = @_;
+
+	if (!defined $id) {
+		die "Missing id.\n";
+	}
+
+	if (!exists $ObjectIDs{$id}) {
+		die "Id ".$id." undefined.\n";
+	}
+
+	return "<a href=\""."foo.html"."\">".$ObjectIDs{$id}->findvalue('./@name')."</a>";
+}
 
 sub process_code {
 	my ($code, $file) = @_;
