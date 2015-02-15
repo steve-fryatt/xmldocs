@@ -17,6 +17,8 @@ my $manual = $parser->parse_file($filename);
 
 my @Time = localtime();
 
+my %ObjectIDs;
+
 # Identify the manual's title.
 
 my $ManualTitle = $manual->findvalue('/manual/title');
@@ -34,6 +36,8 @@ foreach my $breadcrumb ($manual->findnodes('/manual/breadcrumb/dir')) {
 }
 
 push(@BreadCrumbs, $ManualTitle);
+
+link_document($manual);
 
 # Process the chapters, outputting a file for each.
 
@@ -175,6 +179,73 @@ sub get_date {
 	}
 	
 	return $day . $suffix . POSIX::strftime(" %B, %Y", @Time);
+}
+
+
+##
+# Scan through the manual, creating name attributes for each applicable object
+# with sequential numbers and storing any IDs in the %ObjectIDs hash for future
+# use.
+#
+# \param $manual	The manual to be scanned.
+
+sub link_document {
+	my ($manual) = @_;
+
+	my $chapter_number = 1;
+
+	foreach my $chapter ($manual->findnodes('./manual/index|./manual/chapter')) {
+		if ($chapter->nodeName() eq "index") {
+			my $number = 0;
+		} elsif ($chapter->nodeName() eq "chapter") {
+			my $number = $chapter_number++;
+		}
+
+		$chapter->setAttribute("name", "Chapter " . $chapter_number);
+		store_object_id($chapter);
+
+		my $section_number = 1;
+		my $code_number = 1;
+
+		foreach my $section ($chapter->findnodes('./section')) {
+			$section->setAttribute('name', "Section " . $chapter_number . "." . $section_number);
+			store_object_id($section);
+
+			foreach my $object ($section->findnodes('./code')) {
+				if ($object->nodeName() eq "code") {
+					$object->setAttribute('name', "Code " . $chapter_number . "." . $code_number);
+					store_object_id($object);
+
+					$code_number++;
+				}
+			}
+		
+			$section_number++;
+		}
+	}
+}
+
+
+##
+# Check to see if an object has an ID and, if it does, whether it's stored in
+# the list of known IDs. If it's not known, store the ID and a reference to
+# the object.
+#
+# \param $object	The object to store.
+
+sub store_object_id {
+	my ($object) = @_;
+
+	my $id = $object->findvalue('./@id');
+	if (!defined $id || $id eq "") {
+		return;
+	}
+	
+	if (exists $ObjectIDs{$id}) {
+		die "Duplicate object id " . $id . ".\n";
+	}
+
+	$ObjectIDs{$id} = $object;
 }
 
 
@@ -366,7 +437,7 @@ sub get_chapter_filename {
 #
 # \param $chapter	The chapter to return the title for.
 # \param $number	The sequence number of the chapter in question.
-# \return		The title to give to teh chapter.
+# \return		The title to give to the chapter.
 
 sub get_chapter_title {
 	my ($chapter, $number) = @_;
