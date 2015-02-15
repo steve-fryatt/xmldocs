@@ -409,6 +409,11 @@ sub process_section {
 sub process_text {
 	my ($text, $file) = @_;
 
+	my %tags = (
+		'code' => 'code',
+		'em' => 'em'
+	);
+
 	my %styles = (
 		'const' => 'code',
 		'event' => 'name',
@@ -436,6 +441,8 @@ sub process_text {
 		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
 			if (exists $styles{$chunk->nodeName()}) {
 				print $file "<span class=\"", $styles{$chunk->nodeName()}, "\">", $chunk->to_literal, "</span>";
+			} elsif (exists $tags{$chunk->nodeName()}) {
+				print $file "<", $tags{$chunk->nodeName()}, ">", $chunk->to_literal, "</", $tags{$chunk->nodeName()}, ">";
 			} else {
 				print $file $chunk->to_literal;
 			}
