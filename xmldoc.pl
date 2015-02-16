@@ -571,6 +571,9 @@ sub process_code {
 	my $caption = undef;
 	if (defined $code->findvalue('./@id') && $code->findvalue('./@id') ne "") {
 		$caption = $code->findvalue('./@name');
+		if (defined  $code->findvalue('./@file') && $code->findvalue('./@file') ne "") {
+			$caption .= " (".$code->findvalue('./@file').")";
+		}
 		if (defined  $code->findvalue('./@title') && $code->findvalue('./@title') ne "") {
 			$caption .= ": ".$code->findvalue('./@title');
 		}
