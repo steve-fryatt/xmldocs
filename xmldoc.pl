@@ -5,11 +5,18 @@ use warnings;
 
 use POSIX;
 use XML::LibXML;
+use Image::Magick;
 use File::Temp qw/ tempfile tempdir /;
 
-my $index_filename = "index.html";
+my $IndexFilename = "index.html";
 
 my $filename = "wimp.xml";
+my $image_folder = "Images/";
+
+my $OutputFolder = "output/";
+my $OutputImageFolder = "images/";
+
+my $MaxImageWidth = 600;
 
 my $parser = XML::LibXML->new();
 $parser->expand_entities(0);
@@ -41,6 +48,9 @@ link_document($manual);
 
 # Process the chapters, outputting a file for each.
 
+mkdir $OutputFolder;
+mkdir $OutputFolder.$OutputImageFolder;
+
 my $chapter_no = 1;
 
 foreach my $chapter ($manual->findnodes('/manual/chapter')) {
@@ -66,7 +76,7 @@ sub write_header {
 
 	print $file "<html>\n<head>\n";
 	print $file "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">\n";
-	print $file "<link rel=\"stylesheet\" type=\"text/css\" href=\"base.css\">\n";
+	print $file "<link rel=\"stylesheet\" type=\"text/css\" href=\"../base.css\">\n";
 	if (defined $chapter && $chapter ne "") {
 		print $file "<title>", $ManualTitle, " &ndash; ", $chapter, "</title>\n</head>\n";
 	} else {
@@ -144,7 +154,7 @@ sub write_breadcrumb {
 		if ($count > 1 && defined $local) {
 			print $file "<a href=\"", "../" x ($count - 1), "\" class=\"breadcrumb\">", $item, "</a>\n";
 		} elsif ($count > 0 && defined $local) {
-			print $file "<a href=\"", $index_filename, "\" class=\"breadcrumb\">", $item, "</a>\n";
+			print $file "<a href=\"", $IndexFilename, "\" class=\"breadcrumb\">", $item, "</a>\n";
 		} elsif ($count > 0) {
 			print $file "<a href=\"", "../" x $count, "\" class=\"breadcrumb\">", $item, "</a>\n";
 		} else {
@@ -205,17 +215,23 @@ sub link_document {
 
 		my $section_number = 1;
 		my $code_number = 1;
+		my $image_number = 1;
 
 		foreach my $section ($chapter->findnodes('./section')) {
 			$section->setAttribute('name', "Section " . $chapter_number . "." . $section_number);
 			store_object_id($section);
 
-			foreach my $object ($section->findnodes('./code')) {
+			foreach my $object ($section->findnodes('./code|./image')) {
 				if ($object->nodeName() eq "code") {
-					$object->setAttribute('name', "Code " . $chapter_number . "." . $code_number);
+					$object->setAttribute('name', "Listing " . $chapter_number . "." . $code_number);
 					store_object_id($object);
 
 					$code_number++;
+				} elsif ($object->nodeName() eq "image") {
+					$object->setAttribute('name', "Figure " . $chapter_number . "." . $image_number);
+					store_object_id($object);
+
+					$image_number++;
 				}
 			}
 		
@@ -258,7 +274,7 @@ sub store_object_id {
 sub process_index {
 	my ($index, $manual) = @_;
 
-	my $filename = $index_filename;
+	my $filename = $OutputFolder . $IndexFilename;
 
 	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
 
@@ -327,7 +343,7 @@ sub generate_chapter_list {
 sub process_chapter {
 	my ($chapter, $number) = @_;
 
-	my $filename = get_chapter_filename($chapter);
+	my $filename = $OutputFolder.get_chapter_filename($chapter);
 
 	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
 
@@ -471,6 +487,8 @@ sub process_section {
 			print $file "</p>\n\n";
 		} elsif ($block->nodeName() eq "code") {
 			process_code($block, $file);
+		} elsif ($block->nodeName() eq "image") {
+			process_image($block, $file);
 		}
 	}
 }
@@ -550,6 +568,14 @@ sub process_code {
 
 	my $language = $code->findvalue('./@lang');
 
+	my $caption = undef;
+	if (defined $code->findvalue('./@id') && $code->findvalue('./@id') ne "") {
+		$caption = $code->findvalue('./@name');
+		if (defined  $code->findvalue('./@title') && $code->findvalue('./@title') ne "") {
+			$caption .= ": ".$code->findvalue('./@title');
+		}
+	}
+
 	my ($fh, $filename) = tempfile("codeXXXXX");
 
 	print $fh $code->to_literal;
@@ -559,6 +585,51 @@ sub process_code {
 
 	unlink $filename;
 
-	print $file "<div class=\"codeblock\">", $html, "</div>\n\n";
+	print $file "<div class=\"titled\">";
+	print $file "<div class=\"codeblock\">", $html, "</div>";
+	if (defined $caption) {
+		print $file "\n<p class=\"title\">", $caption, "</p>";
+	}
+	print $file "</div>\n\n";
+}
+
+sub process_image {
+	my ($image, $file) = @_;
+
+	my $imagefile = $image->findvalue('./@file');
+
+	my $caption = undef;
+	if (defined $image->findvalue('./@id') && $image->findvalue('./@id') ne "") {
+		$caption = $image->findvalue('./@name');
+		if (defined  $image->findvalue('./@title') && $image->findvalue('./@title') ne "") {
+			$caption .= ": ".$image->findvalue('./@title');
+		}
+	}
+
+	my $convert = Image::Magick->new;
+	my $x = $convert->ReadImage($image_folder.$imagefile);
+	if ($x) {
+		die $x."\n";
+	}
+	
+	$x = $convert->Resize(geometry => $MaxImageWidth.'x');
+	if ($x) {
+		die $x."\n";
+	}
+
+	$x = $convert->Write($OutputFolder.$OutputImageFolder.$imagefile);
+	if ($x) {
+		die $x."\n";
+	}
+
+	my ($width, $height) = $convert->Get('width', 'height');
+
+	undef $convert;
+
+	print $file "<div class=\"titled\"><p><img src=\"", $OutputImageFolder.$imagefile, "\" width=", $width," height=", $height,"></p>";
+	if (defined $caption) {
+		print $file "\n<p class=\"title\">", $caption, "</p>";
+	};
+	print $file "</div>\n\n";
 }
 
