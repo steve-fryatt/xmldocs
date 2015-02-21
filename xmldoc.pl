@@ -506,6 +506,7 @@ sub process_text {
 		'const' => 'code',
 		'event' => 'name',
 		'function' => 'code',
+		'menu' => 'name',
 		'message' => 'name',
 		'name' => 'name',
 		'swi' => 'name',
