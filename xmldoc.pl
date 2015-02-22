@@ -8,6 +8,9 @@ use XML::LibXML;
 use Image::Magick;
 use File::Temp qw/ tempfile tempdir /;
 
+use constant TRUE	=> 1;
+use constant FALSE	=> 0;
+
 my $IndexFilename = "index.html";
 
 my $filename = "wimp.xml";
@@ -210,28 +213,24 @@ sub link_document {
 			$chapter_number = $number++;
 		}
 
-		$chapter->setAttribute("name", "Chapter " . $chapter_number);
-		store_object_id($chapter);
+		store_object_id($chapter, "Chapter " . $chapter_number);
 
 		my $section_number = 1;
 		my $code_number = 1;
 		my $image_number = 1;
 
 		foreach my $section ($chapter->findnodes('./section')) {
-			$section->setAttribute('name', "Section " . $chapter_number . "." . $section_number);
-			store_object_id($section);
+			store_object_id($section, "Section " . $chapter_number . "." . $section_number);
 
 			foreach my $object ($section->findnodes('./code|./image')) {
 				if ($object->nodeName() eq "code") {
-					$object->setAttribute('name', "Listing " . $chapter_number . "." . $code_number);
-					store_object_id($object);
-
-					$code_number++;
+					if (store_object_id($object, "Listing " . $chapter_number . "." . $code_number)) {
+						$code_number++;
+					}
 				} elsif ($object->nodeName() eq "image") {
-					$object->setAttribute('name', "Figure " . $chapter_number . "." . $image_number);
-					store_object_id($object);
-
-					$image_number++;
+					if (store_object_id($object, "Figure " . $chapter_number . "." . $image_number)) {
+						$image_number++;
+					}
 				}
 			}
 		
@@ -247,20 +246,25 @@ sub link_document {
 # the object.
 #
 # \param $object	The object to store.
+# \param $name		The name to give the object.
 
 sub store_object_id {
-	my ($object) = @_;
+	my ($object, $name) = @_;
 
 	my $id = $object->findvalue('./@id');
 	if (!defined $id || $id eq "") {
-		return;
+		return FALSE;
 	}
 	
 	if (exists $ObjectIDs{$id}) {
 		die "Duplicate object id " . $id . ".\n";
 	}
 
+	$object->setAttribute('name', $name);
+
 	$ObjectIDs{$id} = $object;
+
+	return TRUE;
 }
 
 
@@ -510,6 +514,7 @@ sub process_text {
 		'message' => 'name',
 		'name' => 'name',
 		'swi' => 'name',
+		'type' => 'name',
 		'variable' => 'code'
 	);
 
