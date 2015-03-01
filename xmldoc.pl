@@ -213,22 +213,22 @@ sub link_document {
 			$chapter_number = $number++;
 		}
 
-		store_object_id($chapter, "Chapter " . $chapter_number);
+		store_object_id($chapter, undef, "Chapter " . $chapter_number);
 
 		my $section_number = 1;
 		my $code_number = 1;
 		my $image_number = 1;
 
 		foreach my $section ($chapter->findnodes('./section')) {
-			store_object_id($section, "Section " . $chapter_number . "." . $section_number);
+			store_object_id($section, $chapter, "Section " . $chapter_number . "." . $section_number);
 
 			foreach my $object ($section->findnodes('./code|./image')) {
 				if ($object->nodeName() eq "code") {
-					if (store_object_id($object, "Listing " . $chapter_number . "." . $code_number)) {
+					if (store_object_id($object, $chapter, "Listing " . $chapter_number . "." . $code_number)) {
 						$code_number++;
 					}
 				} elsif ($object->nodeName() eq "image") {
-					if (store_object_id($object, "Figure " . $chapter_number . "." . $image_number)) {
+					if (store_object_id($object, $chapter, "Figure " . $chapter_number . "." . $image_number)) {
 						$image_number++;
 					}
 				}
@@ -246,13 +246,15 @@ sub link_document {
 # the object.
 #
 # \param $object	The object to store.
+# \param $chapter	The chapter containing the object, of undef if the
+#			object is a chapter itself.
 # \param $name		The name to give the object.
 
 sub store_object_id {
-	my ($object, $name) = @_;
+	my ($object, $chapter, $name) = @_;
 
-	my $id = $object->findvalue('./@id');
-	if (!defined $id || $id eq "") {
+	my $id = get_object_id($object);
+	if (!defined $id) {
 		return FALSE;
 	}
 	
@@ -262,7 +264,10 @@ sub store_object_id {
 
 	$object->setAttribute('name', $name);
 
-	$ObjectIDs{$id} = $object;
+	$ObjectIDs{$id} = {
+		'object' => $object,
+		'chapter' => $chapter
+	};
 
 	return TRUE;
 }
@@ -481,7 +486,17 @@ sub process_section {
 	my $title = $section->findvalue('./title');
 
 	if (defined($title) && $title ne "") {
-		print $file "<h2>", $title, "</h2>\n\n";
+		my $id = get_object_id($section);
+
+		print $file "<h2>";
+		if (defined $id) {
+			print $file "<a name=\"", $id, "\">";
+		}
+		print $file $title;
+		if (defined $id) {
+			print $file "</a>";
+		}
+		print $file "</h2>\n\n";
 	}
 
 	foreach my $block ($section->childNodes()) {
@@ -538,7 +553,7 @@ sub process_text {
 			} elsif (exists $tags{$chunk->nodeName()}) {
 				print $file "<", $tags{$chunk->nodeName()}, ">", $chunk->to_literal, "</", $tags{$chunk->nodeName()}, ">";
 			} elsif ($chunk->nodeName() eq "reference") {
-				print $file create_reference($chunk->findvalue('./@id'));
+				print $file create_reference(get_object_id($chunk));
 			} else {
 				print $file $chunk->to_literal;
 			}
@@ -555,6 +570,12 @@ sub process_text {
 }
 
 
+##
+# Create an HTML link to the object referenced by the supplied ID.
+#
+# \param $id		The id of the object to create a link to.
+# \return		An HTML link corresponding to the supplied ID.
+
 sub create_reference {
 	my ($id) = @_;
 
@@ -566,8 +587,17 @@ sub create_reference {
 		die "Id ".$id." undefined.\n";
 	}
 
-	return "<a href=\""."foo.html"."\">".$ObjectIDs{$id}->findvalue('./@name')."</a>";
+	my $link = "";
+
+	if (defined $ObjectIDs{$id}->{'chapter'}) {
+		$link = get_chapter_filename($ObjectIDs{$id}->{'chapter'})."#".$id;
+	} else {
+		$link = $link = get_chapter_filename($ObjectIDs{$id}->{'object'});
+	}
+
+	return "<a href=\"".$link."\">".$ObjectIDs{$id}->{'object'}->findvalue('./@name')."</a>";
 }
+
 
 sub process_code {
 	my ($code, $file) = @_;
@@ -575,7 +605,9 @@ sub process_code {
 	my $language = $code->findvalue('./@lang');
 
 	my $caption = undef;
-	if (defined $code->findvalue('./@id') && $code->findvalue('./@id') ne "") {
+	my $id = get_object_id($code);
+
+	if (defined $id) {
 		$caption = $code->findvalue('./@name');
 		if (defined  $code->findvalue('./@file') && $code->findvalue('./@file') ne "") {
 			$caption .= " (".$code->findvalue('./@file').")";
@@ -595,9 +627,15 @@ sub process_code {
 	unlink $filename;
 
 	print $file "<div class=\"titled\">";
+	if (defined $id) {
+		print $file "<a name=\"", $id, "\">";
+	}
 	print $file "<div class=\"codeblock\">", $html, "</div>";
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
+	}
+	if (defined $id) {
+		print $file "</a>";
 	}
 	print $file "</div>\n\n";
 }
@@ -608,7 +646,9 @@ sub process_image {
 	my $imagefile = $image->findvalue('./@file');
 
 	my $caption = undef;
-	if (defined $image->findvalue('./@id') && $image->findvalue('./@id') ne "") {
+	my $id = get_object_id($image);
+
+	if (defined $id) {
 		$caption = $image->findvalue('./@name');
 		if (defined  $image->findvalue('./@title') && $image->findvalue('./@title') ne "") {
 			$caption .= ": ".$image->findvalue('./@title');
@@ -635,10 +675,37 @@ sub process_image {
 
 	undef $convert;
 
-	print $file "<div class=\"titled\"><p><img src=\"", $OutputImageFolder.$imagefile, "\" width=", $width," height=", $height,"></p>";
+	print $file "<div class=\"titled\">";
+	if (defined $id) {
+		print $file "<a name=\"", $id, "\">";
+	}
+	print $file "<p><img src=\"", $OutputImageFolder.$imagefile, "\" width=", $width," height=", $height,"></p>";
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
 	};
+	if (defined $id) {
+		print $file "</a>";
+	}
 	print $file "</div>\n\n";
+}
+
+
+##
+# Get the reference ID for an object. If one hasn't been defined, undef is
+# returned instead.
+#
+# \param $object	The object to return the ID for.
+# \return		The object's ID, or undef if none has been defined.
+
+sub get_object_id {
+	my ($object) = @_;
+
+	my $id = $object->findvalue('./@id');
+
+	if ($id eq "") {
+		$id = undef;
+	}
+
+	return $id;
 }
 
