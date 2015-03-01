@@ -408,6 +408,8 @@ sub process_chapter {
 sub find_previous_chapter {
 	my ($chapter) = @_;
 
+	validate_object_type($chapter, "chapter");
+
 	my $previous = $chapter->previousNonBlankSibling();
 
 	while (defined $previous && ($previous->nodeName() ne "chapter" || $previous->nodeType() != XML_ELEMENT_NODE)) {
@@ -427,6 +429,8 @@ sub find_previous_chapter {
 sub find_next_chapter {
 	my ($chapter) = @_;
 
+	validate_object_type($chapter, "chapter");
+
 	my $next = $chapter->nextNonBlankSibling();
 
 	while (defined $next && ($next->nodeName() ne "chapter" || $next->nodeType() != XML_ELEMENT_NODE)) {
@@ -445,7 +449,9 @@ sub find_next_chapter {
 
 sub get_chapter_filename {
 	my ($chapter) = @_;
-	
+
+	validate_object_type($chapter, "chapter");
+
 	my $filename = $chapter->findvalue('./filename');
 
 	if (!defined $filename || $filename eq "") {
@@ -465,6 +471,8 @@ sub get_chapter_filename {
 
 sub get_chapter_title {
 	my ($chapter, $number) = @_;
+
+	validate_object_type($chapter, "chapter");
 
 	my $name = $chapter->findvalue('./title');
 
@@ -700,6 +708,8 @@ sub process_image {
 sub get_object_id {
 	my ($object) = @_;
 
+	validate_object_type($object, "reference", "index", "chapter", "section", "code", "image");
+
 	my $id = $object->findvalue('./@id');
 
 	if ($id eq "") {
@@ -709,3 +719,28 @@ sub get_object_id {
 	return $id;
 }
 
+
+##
+# Test the type of an object to see if it's one contained in an acceptable
+# list. If the object's type isn't in the list, the subroutine exits via
+# die() and does not return.
+#
+# \param $object	The object to test.
+# \param @types		A list of acceptable types.
+
+sub validate_object_type {
+	my ($object, @types) = @_;
+
+	my $found = FALSE;
+
+	foreach my $type (@types) {
+		if ($type eq $object->nodeName()) {
+			$found = TRUE;
+			last;
+		}
+	}
+
+	if (!$found) {
+		die "ID in invalid object ".$object->nodeName()."\n";
+	}
+}
