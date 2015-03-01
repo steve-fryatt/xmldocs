@@ -561,7 +561,9 @@ sub process_text {
 			} elsif (exists $tags{$chunk->nodeName()}) {
 				print $file "<", $tags{$chunk->nodeName()}, ">", $chunk->to_literal, "</", $tags{$chunk->nodeName()}, ">";
 			} elsif ($chunk->nodeName() eq "reference") {
-				print $file create_reference(get_object_id($chunk));
+				print $file create_reference($chunk);
+			} elsif ($chunk->nodeName() eq "link") {
+				print $file create_link($chunk);
 			} else {
 				print $file $chunk->to_literal;
 			}
@@ -579,13 +581,17 @@ sub process_text {
 
 
 ##
-# Create an HTML link to the object referenced by the supplied ID.
+# Create an HTML link to the object indicated by the supplied reference.
 #
-# \param $id		The id of the object to create a link to.
-# \return		An HTML link corresponding to the supplied ID.
+# \param $reference	The reference object to use.
+# \return		An HTML link corresponding to the supplied reference.
 
 sub create_reference {
-	my ($id) = @_;
+	my ($reference) = @_;
+
+	validate_object_type($reference, "reference");
+
+	my $id = get_object_id($reference);
 
 	if (!defined $id) {
 		die "Missing id.\n";
@@ -605,6 +611,28 @@ sub create_reference {
 
 	return "<a href=\"".$link."\">".$ObjectIDs{$id}->{'object'}->findvalue('./@name')."</a>";
 }
+
+
+##
+# Create an HTML link to an external resource indicated by the supplied
+# link.
+#
+# \param $link		The link object to use.
+# \return		An HTML link corresponding to the supplied link.
+
+sub create_link {
+	my ($link) = @_;
+
+	validate_object_type($link, "link");
+
+	if (!defined $link->findvalue('./@href') || $link->findvalue('./@href') eq "") {
+		die "Missing external link.\n";
+	}
+
+	return "<a href=\"".$link->findvalue('./@href')."\" class=\"external\">".$link->to_literal."</a>";
+}
+
+
 
 
 sub process_code {
