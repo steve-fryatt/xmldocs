@@ -112,10 +112,10 @@ sub write_footer {
 	print $file "</div>\n\n";
 
 	print $file "<div id=\"footer\">\n";
-	print $file "<p><a href=\"http://validator.w3.org/check?uri=referer\"><img src=\"../images/vh40.gif\" alt=\"Valid HTML 4.0!\" width=88 height=31 border=0></a>&nbsp;\n";
-	print $file "<a href=\"http://www.riscos.com/\"><img src=\"../images/roro4x.gif\" alt=\"RISC OS\" width=88 height=31 border=0></a>&nbsp;\n";
-	print $file "<a href=\"http://www.anybrowser.org/campaign/\"><img src=\"../images/any.gif\" alt=\"Best veiwed with Any Browser!\" width=81 height=31 border=0></a>&nbsp;\n";
-	print $file "<a href=\"http://jigsaw.w3.org/css-validator/check/referer\"><img src=\"../images/vcss.gif\" alt=\"Valid CSS!\" width=88 height=31 border=0></a></p>\n\n";
+	print $file "<p><a href=\"http://validator.w3.org/check?uri=referer\"><img src=\"../../images/vh40.gif\" alt=\"Valid HTML 4.0!\" width=88 height=31 border=0></a>&nbsp;\n";
+	print $file "<a href=\"http://www.riscos.com/\"><img src=\"../../images/roro4x.gif\" alt=\"RISC OS\" width=88 height=31 border=0></a>&nbsp;\n";
+	print $file "<a href=\"http://www.anybrowser.org/campaign/\"><img src=\"../../images/any.gif\" alt=\"Best veiwed with Any Browser!\" width=81 height=31 border=0></a>&nbsp;\n";
+	print $file "<a href=\"http://jigsaw.w3.org/css-validator/check/referer\"><img src=\"../../images/vcss.gif\" alt=\"Valid CSS!\" width=88 height=31 border=0></a></p>\n\n";
 
 	print $file "<p>Page last updated ", get_date(), " | Maintained by Steve Fryatt:\n";
 	print $file "<a href=\"mailto:web\@stevefryatt.org.uk\">web\@stevefryatt.org.uk</a></p>\n";
@@ -532,6 +532,7 @@ sub process_text {
 	my %styles = (
 		'const' => 'code',
 		'event' => 'name',
+		'file' => 'filename',
 		'function' => 'code',
 		'menu' => 'name',
 		'message' => 'name',
