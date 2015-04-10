@@ -19,7 +19,7 @@ my $image_folder = "Images/";
 my $OutputFolder = "output/";
 my $OutputImageFolder = "images/";
 
-my $MaxImageWidth = 600;
+my $MaxImageWidth = 500;
 
 my $parser = XML::LibXML->new();
 $parser->expand_entities(0);
@@ -698,7 +698,7 @@ sub process_image {
 		die $x."\n";
 	}
 	
-	$x = $convert->Resize(geometry => $MaxImageWidth.'x');
+	$x = $convert->Resize(geometry => $MaxImageWidth.'x>');
 	if ($x) {
 		die $x."\n";
 	}
