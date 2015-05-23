@@ -516,6 +516,8 @@ sub process_section {
 			process_code($block, $file);
 		} elsif ($block->nodeName() eq "image") {
 			process_image($block, $file);
+		} elsif ($block->nodeName() eq "download") {
+			process_download($block, $file);
 		}
 	}
 }
@@ -720,6 +722,37 @@ sub process_image {
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
 	};
+	if (defined $id) {
+		print $file "</a>";
+	}
+	print $file "</div>\n\n";
+}
+
+
+sub process_download {
+	my ($download, $file) = @_;
+
+	my $downloadfile = $download->findvalue('./@file');
+
+	my $caption = undef;
+	my $id = get_object_id($image);
+
+#	if (defined $id) {
+#		$caption = $image->findvalue('./@name');
+#		if (defined  $image->findvalue('./@title') && $image->findvalue('./@title') ne "") {
+#			$caption .= ": ".$image->findvalue('./@title');
+#		}
+#	}
+
+	print $file "<div class=\"download\">";
+	if (defined $id) {
+		print $file "<a name=\"", $id, "\">";
+	}
+	print $file "<p><img src=\"", $ZipImageLocation, "\" width=", $ZipImageWidth," height=", $ZipImageHeight,">\n";
+	print $file "<img src=\"", $Armv7ImageLocation, "\" alt=\"ARMv7 OK\" width=34 height=39 class=\"iyonix\">\n";
+	print $file "<img src=\"", $IyonixImageLocation, "\" alt=\"Iyonix OK\" width=34 height=39 class=\"iyonix\">\n";
+	print $file "<b>Download:</b> <a href=\"menugen2422ro.zip\">MenuGen r2422 for RISC&nbsp;OS</a><br>\n";
+	print $file "17 Kbytes | 12th May, 2014 | 26/32-bit neutral, ARMv7 OK</p>\n";
 	if (defined $id) {
 		print $file "</a>";
 	}
