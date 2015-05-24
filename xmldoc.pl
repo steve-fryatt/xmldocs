@@ -6,6 +6,9 @@ use warnings;
 use POSIX;
 use XML::LibXML;
 use Image::Magick;
+use File::stat;
+use File::Copy;
+use File::Path qw/ make_path remove_tree /;
 use File::Temp qw/ tempfile tempdir /;
 
 use constant TRUE	=> 1;
@@ -14,12 +17,18 @@ use constant FALSE	=> 0;
 my $IndexFilename = "index.html";
 
 my $filename = "wimp.xml";
-my $image_folder = "Images/";
+my $ImageFolder = "Images/";
+my $DownloadFolder = "Downloads/";
 
 my $OutputFolder = "output/";
 my $OutputImageFolder = "images/";
+my $OutputDownloadFolder = "files/";
 
 my $MaxImageWidth = 500;
+
+my $ZipImageLocation = "../../software/images/zip.png";
+my $Armv7ImageLocation = "../../software/images/armv7.png";
+my $IyonixImageLocation = "../../software/images/iyonix.gif";
 
 my $parser = XML::LibXML->new();
 $parser->expand_entities(0);
@@ -51,8 +60,10 @@ link_document($manual);
 
 # Process the chapters, outputting a file for each.
 
-mkdir $OutputFolder;
-mkdir $OutputFolder.$OutputImageFolder;
+# remove_tree($OutputFolder, {keep_root => TRUE} );
+
+make_path($OutputFolder.$OutputImageFolder);
+make_path($OutputFolder.$OutputDownloadFolder);
 
 my $chapter_no = 1;
 
@@ -117,7 +128,7 @@ sub write_footer {
 	print $file "<a href=\"http://www.anybrowser.org/campaign/\"><img src=\"../../images/any.gif\" alt=\"Best veiwed with Any Browser!\" width=81 height=31 border=0></a>&nbsp;\n";
 	print $file "<a href=\"http://jigsaw.w3.org/css-validator/check/referer\"><img src=\"../../images/vcss.gif\" alt=\"Valid CSS!\" width=88 height=31 border=0></a></p>\n\n";
 
-	print $file "<p>Page last updated ", get_date(), " | Maintained by Steve Fryatt:\n";
+	print $file "<p>Page last updated ", get_date(@Time), " | Maintained by Steve Fryatt:\n";
 	print $file "<a href=\"mailto:web\@stevefryatt.org.uk\">web\@stevefryatt.org.uk</a></p>\n";
 	print $file "</div>\n\n";
 
@@ -172,9 +183,12 @@ sub write_breadcrumb {
 ##
 # Get the date in a suitable format for a page footer.
 #
+# \param @time		The time to convert.
 # \return		The current date.
 
 sub get_date {
+	my (@time) = @_;
+
 	my %suffixes = (
 		1 => 'st',
 		2 => 'nd',
@@ -186,12 +200,33 @@ sub get_date {
 	);
 
 	my $suffix = 'th';
-	my $day  = $Time[3];
+	my $day  = $time[3];
 	if (exists $suffixes{$day}) {
 		$suffix = $suffixes{$day};
 	}
 	
-	return $day . $suffix . POSIX::strftime(" %B, %Y", @Time);
+	return $day . $suffix . POSIX::strftime(" %B, %Y", @time);
+}
+
+
+##
+# Get a filetype into a human-readable format.
+#
+# \param $size		The size to format, in bytes.
+# \return		The size in human-readable format.
+
+sub get_filesize {
+	my ($size) = @_;
+
+	if ($size < 1024) {
+		return sprintf("%d Bytes", $size);
+	} elsif ($size < 1048576) {
+		return sprintf("%d KBytes", ($size / 1024) + 0.5);
+	} else {
+		return sprintf("%d Mbytes", (($size / 104857.6) + 0.5) / 10);
+	}
+
+	return "";
 }
 
 
@@ -218,11 +253,12 @@ sub link_document {
 		my $section_number = 1;
 		my $code_number = 1;
 		my $image_number = 1;
+		my $download_number = 1;
 
 		foreach my $section ($chapter->findnodes('./section')) {
 			store_object_id($section, $chapter, "Section " . $chapter_number . "." . $section_number);
 
-			foreach my $object ($section->findnodes('./code|./image')) {
+			foreach my $object ($section->findnodes('./code|./image|./download')) {
 				if ($object->nodeName() eq "code") {
 					if (store_object_id($object, $chapter, "Listing " . $chapter_number . "." . $code_number)) {
 						$code_number++;
@@ -230,6 +266,10 @@ sub link_document {
 				} elsif ($object->nodeName() eq "image") {
 					if (store_object_id($object, $chapter, "Figure " . $chapter_number . "." . $image_number)) {
 						$image_number++;
+					}
+				} elsif ($object->nodeName() eq "download") {
+					if (store_object_id($object, $chapter, "Download " . $chapter_number . "." . $download_number)) {
+						$download_number++;
 					}
 				}
 			}
@@ -484,9 +524,11 @@ sub get_chapter_title {
 }
 
 
-
-
-
+##
+# Process a section object and write it to the output.
+#
+# \param $section	The section object to be processed.
+# \param $file		The file to write output to.
 
 sub process_section {
 	my ($section, $file) = @_;
@@ -522,6 +564,12 @@ sub process_section {
 	}
 }
 
+
+##
+# Process a text object and write it to the output.
+#
+# \param $text		The text object to be processed.
+# \param $file		The file to write output to.
 
 sub process_text {
 	my ($text, $file) = @_;
@@ -636,7 +684,11 @@ sub create_link {
 }
 
 
-
+##
+# Process a code object and write it to the output.
+#
+# \param $code		The code object to be processed.
+# \param $file		The file to write output to.
 
 sub process_code {
 	my ($code, $file) = @_;
@@ -679,6 +731,13 @@ sub process_code {
 	print $file "</div>\n\n";
 }
 
+
+##
+# Process an image object and write it to the output.
+#
+# \param $image		The image object to be processed.
+# \param $file		The file to write output to.
+
 sub process_image {
 	my ($image, $file) = @_;
 
@@ -689,13 +748,13 @@ sub process_image {
 
 	if (defined $id) {
 		$caption = $image->findvalue('./@name');
-		if (defined  $image->findvalue('./@title') && $image->findvalue('./@title') ne "") {
+		if (defined $image->findvalue('./@title') && $image->findvalue('./@title') ne "") {
 			$caption .= ": ".$image->findvalue('./@title');
 		}
 	}
 
 	my $convert = Image::Magick->new;
-	my $x = $convert->ReadImage($image_folder.$imagefile);
+	my $x = $convert->ReadImage($ImageFolder.$imagefile);
 	if ($x) {
 		die $x."\n";
 	}
@@ -729,34 +788,73 @@ sub process_image {
 }
 
 
+##
+# Process a download object and write it to the output.
+#
+# \param $download	The download object to be processed.
+# \param $file		The file to write output to.
+
 sub process_download {
 	my ($download, $file) = @_;
 
 	my $downloadfile = $download->findvalue('./@file');
 
 	my $caption = undef;
-	my $id = get_object_id($image);
+	my $title = undef;
+	my $id = get_object_id($download);
 
-#	if (defined $id) {
-#		$caption = $image->findvalue('./@name');
-#		if (defined  $image->findvalue('./@title') && $image->findvalue('./@title') ne "") {
-#			$caption .= ": ".$image->findvalue('./@title');
-#		}
-#	}
+	if (defined $id) {
+		$caption = $download->findvalue('./@name');
+	} else {
+		$caption = "Download";
+	}
+	
+	if (defined $download->findvalue('./@title') && $download->findvalue('./@title') ne "") {
+		$title = $download->findvalue('./@title');
+	} else {
+		$title = $downloadfile;
+	}
 
-	print $file "<div class=\"download\">";
+	my $fileinfo = stat($DownloadFolder.$downloadfile);
+
+	my $filesize = $fileinfo->size;
+	my $filedate = $fileinfo->mtime;
+
+	my $compatibility = "";
+	my $iyonix_ok = FALSE;
+	my $armv7_ok = FALSE;
+
+	if ($download->findvalue('./@compatibility') eq "26bit") {
+		$compatibility = "<em>26-bit only</em>";
+	} elsif ($download->findvalue('./@compatibility') eq "32bit") {
+		$compatibility = "26/32-bit neutral";
+		$iyonix_ok = TRUE;
+	} else {
+		$compatibility = "26/32-bit neutral, ARMv7 OK";
+		$iyonix_ok = TRUE;
+		$armv7_ok = TRUE;
+	}
+
+	print $file "<p class=\"download\">";
+	
+	print $file "<img src=\"", $ZipImageLocation, "\" alt=\"\" width=34 height=34>\n";
+	if ($iyonix_ok) {
+		print $file "<img src=\"", $Armv7ImageLocation, "\" alt=\"ARMv7 OK\" width=34 height=39 class=\"iyonix\">\n";
+	}
+	if ($armv7_ok) {
+		print $file "<img src=\"", $IyonixImageLocation, "\" alt=\"Iyonix OK\" width=34 height=39 class=\"iyonix\">\n";
+	}
 	if (defined $id) {
 		print $file "<a name=\"", $id, "\">";
 	}
-	print $file "<p><img src=\"", $ZipImageLocation, "\" width=", $ZipImageWidth," height=", $ZipImageHeight,">\n";
-	print $file "<img src=\"", $Armv7ImageLocation, "\" alt=\"ARMv7 OK\" width=34 height=39 class=\"iyonix\">\n";
-	print $file "<img src=\"", $IyonixImageLocation, "\" alt=\"Iyonix OK\" width=34 height=39 class=\"iyonix\">\n";
-	print $file "<b>Download:</b> <a href=\"menugen2422ro.zip\">MenuGen r2422 for RISC&nbsp;OS</a><br>\n";
-	print $file "17 Kbytes | 12th May, 2014 | 26/32-bit neutral, ARMv7 OK</p>\n";
+	print $file "<b>", $caption, ":</b>";
 	if (defined $id) {
 		print $file "</a>";
 	}
-	print $file "</div>\n\n";
+	print $file " <a href=\"", $OutputDownloadFolder.$downloadfile,"\">", $title,"</a><br>\n";
+	print $file get_filesize($filesize), " | ", get_date(localtime($filedate)), " | ", $compatibility, "</p>\n\n";
+
+	copy($DownloadFolder.$downloadfile, $OutputFolder.$OutputDownloadFolder.$downloadfile) or die "Failed to copy file ", $downloadfile;
 }
 
 
@@ -770,7 +868,7 @@ sub process_download {
 sub get_object_id {
 	my ($object) = @_;
 
-	validate_object_type($object, "reference", "index", "chapter", "section", "code", "image");
+	validate_object_type($object, "reference", "index", "chapter", "section", "code", "image", "download");
 
 	my $id = $object->findvalue('./@id');
 
