@@ -825,12 +825,12 @@ sub process_download {
 	my $armv7_ok = FALSE;
 
 	if ($download->findvalue('./@compatibility') eq "26bit") {
-		$compatibility = "<em>26-bit only</em>";
+		$compatibility = " | <em>26-bit only</em>";
 	} elsif ($download->findvalue('./@compatibility') eq "32bit") {
-		$compatibility = "26/32-bit neutral";
+		$compatibility = " | 26/32-bit neutral";
 		$iyonix_ok = TRUE;
-	} else {
-		$compatibility = "26/32-bit neutral, ARMv7 OK";
+	} elsif ($download->findvalue('./@compatibility') eq "armv7") {
+		$compatibility = " | 26/32-bit neutral, ARMv7 OK";
 		$iyonix_ok = TRUE;
 		$armv7_ok = TRUE;
 	}
@@ -852,7 +852,7 @@ sub process_download {
 		print $file "</a>";
 	}
 	print $file " <a href=\"", $OutputDownloadFolder.$downloadfile,"\">", $title,"</a><br>\n";
-	print $file get_filesize($filesize), " | ", get_date(localtime($filedate)), " | ", $compatibility, "</p>\n\n";
+	print $file get_filesize($filesize), " | ", get_date(localtime($filedate)), $compatibility, "</p>\n\n";
 
 	copy($DownloadFolder.$downloadfile, $OutputFolder.$OutputDownloadFolder.$downloadfile) or die "Failed to copy file ", $downloadfile;
 }
