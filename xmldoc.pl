@@ -9,6 +9,7 @@ use Image::Magick;
 use File::stat;
 use File::Copy;
 use File::Path qw/ make_path remove_tree /;
+use File::Spec;
 use File::Temp qw/ tempfile tempdir /;
 
 use constant TRUE	=> 1;
@@ -323,7 +324,7 @@ sub store_object_id {
 sub process_index {
 	my ($index, $manual) = @_;
 
-	my $filename = $OutputFolder . $IndexFilename;
+	my $filename = File::Spec->catfile($OutputFolder, $IndexFilename);
 
 	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
 
@@ -392,7 +393,7 @@ sub generate_chapter_list {
 sub process_chapter {
 	my ($chapter, $number) = @_;
 
-	my $filename = $OutputFolder.get_chapter_filename($chapter);
+	my $filename = File::Spec->catfile($OutputFolder, get_chapter_filename($chapter));
 
 	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
 
@@ -523,6 +524,21 @@ sub get_chapter_title {
 	return $name;
 }
 
+
+sub get_chapter_image_resources {
+	my ($chapter) = @_;
+
+	validate_object_type($chapter, "chapter");
+
+	my $folder = $chapter->findvalue('./images');
+
+	if (!defined $folder || $folder eq "") {
+		die "No filename for chapter.\n";
+	}
+
+	return $filename;
+
+}
 
 ##
 # Process a section object and write it to the output.
@@ -754,7 +770,7 @@ sub process_image {
 	}
 
 	my $convert = Image::Magick->new;
-	my $x = $convert->ReadImage($ImageFolder.$imagefile);
+	my $x = $convert->ReadImage(File::Spec->catfile($ImageFolder, $imagefile));
 	if ($x) {
 		die $x."\n";
 	}
@@ -764,7 +780,7 @@ sub process_image {
 		die $x."\n";
 	}
 
-	$x = $convert->Write($OutputFolder.$OutputImageFolder.$imagefile);
+	$x = $convert->Write(File::Spec->catfile($OutputFolder, $OutputImageFolder, $imagefile));
 	if ($x) {
 		die $x."\n";
 	}
@@ -777,7 +793,7 @@ sub process_image {
 	if (defined $id) {
 		print $file "<a name=\"", $id, "\">";
 	}
-	print $file "<p><img src=\"", $OutputImageFolder.$imagefile, "\" width=", $width," height=", $height,"></p>";
+	print $file "<p><img src=\"", File::Spec::Unix->catfile($OutputImageFolder, $imagefile), "\" width=", $width," height=", $height,"></p>";
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
 	};
@@ -815,7 +831,7 @@ sub process_download {
 		$title = $downloadfile;
 	}
 
-	my $fileinfo = stat($DownloadFolder.$downloadfile);
+	my $fileinfo = stat(File::Spec->catfile($DownloadFolder, $downloadfile));
 
 	my $filesize = $fileinfo->size;
 	my $filedate = $fileinfo->mtime;
@@ -851,10 +867,10 @@ sub process_download {
 	if (defined $id) {
 		print $file "</a>";
 	}
-	print $file " <a href=\"", $OutputDownloadFolder.$downloadfile,"\">", $title,"</a><br>\n";
+	print $file " <a href=\"", File::Spec::Unix->catfile($OutputDownloadFolder, $downloadfile),"\">", $title,"</a><br>\n";
 	print $file get_filesize($filesize), " | ", get_date(localtime($filedate)), $compatibility, "</p>\n\n";
 
-	copy($DownloadFolder.$downloadfile, $OutputFolder.$OutputDownloadFolder.$downloadfile) or die "Failed to copy file ", $downloadfile;
+	copy(File::Spec->catfile($DownloadFolder, $downloadfile), File::Spec->catfile($OutputFolder, $OutputDownloadFolder, $downloadfile)) or die "Failed to copy file ", $downloadfile;
 }
 
 
