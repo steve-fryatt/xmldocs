@@ -25,17 +25,19 @@ my $OutputDownloadFolder = "files/";
 
 my $MaxImageWidth = 500;
 
-my $ZipImageLocation = "../../software/images/zip.png";
-my $Armv7ImageLocation = "../../software/images/armv7.png";
-my $IyonixImageLocation = "../../software/images/iyonix.gif";
-
 my $parser = XML::LibXML->new();
 $parser->expand_entities(0);
 my $manual = $parser->parse_file($filename);
 
 my @Time = localtime();
 
-my %ObjectIDs;
+# Locate the icon details
+
+my %IconDetails;
+
+foreach my $icon ($manual->findnodes('/manual/icons/*')) {
+	store_icon_details($icon);
+}
 
 # Identify the manual's title.
 
@@ -62,6 +64,10 @@ foreach my $breadcrumb ($manual->findnodes('/manual/breadcrumb/dir')) {
 }
 
 push(@BreadCrumbs, $ManualTitle);
+
+# Link the document, recording all the id attributes.
+
+my %ObjectIDs;
 
 link_document($manual);
 
@@ -247,6 +253,8 @@ sub get_filesize {
 sub link_document {
 	my ($manual) = @_;
 
+	print "Linking document...\n";
+
 	my $number = 1;
 
 	foreach my $chapter ($manual->findnodes('./manual/index|./manual/chapter')) {
@@ -307,7 +315,7 @@ sub store_object_id {
 	}
 	
 	if (exists $ObjectIDs{$id}) {
-		die "Duplicate object id " . $id . ".\n";
+		die "Duplicate object id ", $id, ".\n";
 	}
 
 	$object->setAttribute('name', $name);
@@ -322,6 +330,29 @@ sub store_object_id {
 
 
 ##
+# Store details of an icon's image file.
+#
+# \param $icon		The icon object to be processed
+
+sub store_icon_details {
+	my ($icon) = @_;
+
+	my $name = $icon->nodeName();
+
+	if (exists $IconDetails{$name}) {
+		die "Duplicate icon details ", $name, ".\n";
+	}
+
+	$IconDetails{$name} = {
+		'file' => $icon->to_literal,
+		'alt' => $icon->findvalue('./@alt'),
+		'width' => $icon->findvalue('./@width'),
+		'height' => $icon->findvalue('./@height')
+	};
+}
+
+
+##
 # Process an index object to create the introduction page and a contents
 # list for the other pages.
 #
@@ -332,6 +363,8 @@ sub process_index {
 	my ($index, $manual) = @_;
 
 	my $filename = File::Spec->catfile($OutputFolder, get_chapter_filename($index));
+
+	print "Writing Index to ", $filename, "...\n";
 
 	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
 
@@ -401,6 +434,8 @@ sub process_chapter {
 	my ($chapter, $number) = @_;
 
 	my $filename = File::Spec->catfile($OutputFolder, get_chapter_filename($chapter));
+
+	print "Writing Chapter ", $number, " to ", $filename, "...\n";
 
 	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
 
@@ -531,21 +566,6 @@ sub get_chapter_title {
 	return $name;
 }
 
-
-sub get_chapter_image_resources {
-	my ($chapter) = @_;
-
-	validate_object_type($chapter, "chapter");
-
-	my $folder = $chapter->findvalue('./images');
-
-	if (!defined $folder || $folder eq "") {
-		die "No filename for chapter.\n";
-	}
-
-	return $filename;
-
-}
 
 ##
 # Process a section object and write it to the output.
@@ -864,12 +884,12 @@ sub process_download {
 
 	print $file "<p class=\"download\">";
 	
-	print $file "<img src=\"", $ZipImageLocation, "\" alt=\"\" width=34 height=34>\n";
+	write_icon_image($file, 'zip');
 	if ($iyonix_ok) {
-		print $file "<img src=\"", $Armv7ImageLocation, "\" alt=\"ARMv7 OK\" width=34 height=39 class=\"iyonix\">\n";
+		write_icon_image($file, 'armv7', 'iyonix');
 	}
 	if ($armv7_ok) {
-		print $file "<img src=\"", $IyonixImageLocation, "\" alt=\"Iyonix OK\" width=34 height=39 class=\"iyonix\">\n";
+		write_icon_image($file, 'iyonix', 'iyonix');
 	}
 	if (defined $id) {
 		print $file "<a name=\"", $id, "\">";
@@ -884,6 +904,30 @@ sub process_download {
 	copy(File::Spec->catfile($DownloadFolder, $downloadfile), File::Spec->catfile($OutputFolder, $OutputDownloadFolder, $downloadfile)) or die "Failed to copy file ", $downloadfile;
 }
 
+
+##
+# Write an image tag for an icon to the output file.
+#
+# \param $file		The file to write to.
+# \param $icon		The internal image icon name.
+# \param $class		If supplied, the CSS class name to apply to the image.
+
+sub write_icon_image {
+	my ($file, $icon, $class) = @_;
+
+	if (!defined $IconDetails{$icon}) {
+		die "Icon ", $icon, " not defined.\n";
+	}
+
+	print $file "<img src=\"", $IconDetails{$icon}->{'file'}, "\" alt=\"", $IconDetails{$icon}->{'alt'},
+			"\" width=", $IconDetails{$icon}->{'width'}, " height=", $IconDetails{$icon}->{'height'};
+
+	if (defined $class) {
+		print $file " class=\"", $class, "\"";
+	}
+
+	print $file ">\n";
+}
 
 ##
 # Get the reference ID for an object. If one hasn't been defined, undef is
