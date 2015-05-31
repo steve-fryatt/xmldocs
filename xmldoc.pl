@@ -833,6 +833,10 @@ sub process_download {
 
 	my $fileinfo = stat(File::Spec->catfile($DownloadFolder, $downloadfile));
 
+	if (!defined $fileinfo) {
+		die "Couldn't find download file ", $downloadfile, "\n";
+	}
+
 	my $filesize = $fileinfo->size;
 	my $filedate = $fileinfo->mtime;
 
