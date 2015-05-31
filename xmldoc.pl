@@ -15,8 +15,6 @@ use File::Temp qw/ tempfile tempdir /;
 use constant TRUE	=> 1;
 use constant FALSE	=> 0;
 
-my $IndexFilename = "index.html";
-
 my $filename = "wimp.xml";
 my $ImageFolder = "Images/";
 my $DownloadFolder = "Downloads/";
@@ -47,6 +45,14 @@ if (!defined($ManualTitle)) {
 	$ManualTitle = "Undefined";
 }
 
+# Find the index filename
+
+if ($manual->findvalue('count(/manual/index/filename)') != 1) {
+	die("No unique index found\n");
+}
+
+my $IndexFilename = $manual->findvalue('/manual/index/filename');
+
 # Identify the breadcrumb trail that we're going to use.
 
 my @BreadCrumbs;
@@ -63,8 +69,8 @@ link_document($manual);
 
 # remove_tree($OutputFolder, {keep_root => TRUE} );
 
-make_path($OutputFolder.$OutputImageFolder);
-make_path($OutputFolder.$OutputDownloadFolder);
+make_path(File::Spec->catfile($OutputFolder, $OutputImageFolder));
+make_path(File::Spec->catfile($OutputFolder, $OutputDownloadFolder));
 
 my $chapter_no = 1;
 
@@ -247,6 +253,7 @@ sub link_document {
 		my $chapter_number = 0;
 		if ($chapter->nodeName() eq "chapter") {
 			$chapter_number = $number++;
+		} elsif ($chapter->nodeName() eq "index") {
 		}
 
 		store_object_id($chapter, undef, "Chapter " . $chapter_number);
@@ -324,7 +331,7 @@ sub store_object_id {
 sub process_index {
 	my ($index, $manual) = @_;
 
-	my $filename = File::Spec->catfile($OutputFolder, $IndexFilename);
+	my $filename = File::Spec->catfile($OutputFolder, get_chapter_filename($index));
 
 	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
 
@@ -483,7 +490,7 @@ sub find_next_chapter {
 
 
 ##
-# Find the filename to use for a chapter.
+# Find the filename to use for a chapter or index.
 #
 # \param $chapter	The chapter to return the filename for.
 # \return		The filename of the chapter.
@@ -491,7 +498,7 @@ sub find_next_chapter {
 sub get_chapter_filename {
 	my ($chapter) = @_;
 
-	validate_object_type($chapter, "chapter");
+	validate_object_type($chapter, "chapter", "index");
 
 	my $filename = $chapter->findvalue('./filename');
 
