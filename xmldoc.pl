@@ -747,7 +747,16 @@ sub create_reference {
 		$link = $link = get_chapter_filename($ObjectIDs{$id}->{'object'});
 	}
 
-	return "<a href=\"".$link."\">".$ObjectIDs{$id}->{'object'}->findvalue('./@name')."</a>";
+	my $text = "";
+
+	if (defined $reference->to_literal && $reference->to_literal ne "") {
+		$text = $reference->to_literal;
+	} else {
+		$text = $ObjectIDs{$id}->{'object'}->findvalue('./@name');
+	}
+
+
+	return "<a href=\"".$link."\">".$text."</a>";
 }
 
 
