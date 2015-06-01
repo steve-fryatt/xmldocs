@@ -16,8 +16,6 @@ use constant TRUE	=> 1;
 use constant FALSE	=> 0;
 
 my $filename = "wimp.xml";
-my $ImageFolder = "Images/";
-my $DownloadFolder = "Downloads/";
 
 my $OutputFolder = "output/";
 my $OutputImageFolder = "images/";
@@ -41,19 +39,16 @@ foreach my $icon ($manual->findnodes('/manual/icons/*')) {
 
 # Identify the manual's title.
 
-my $ManualTitle = $manual->findvalue('/manual/title');
+my $ManualTitle = get_value($manual, '/manual/title', 'Undefined');
 
-if (!defined($ManualTitle)) {
-	$ManualTitle = "Undefined";
-}
+# Find the base resource folders.
+
+my $ImageFolder = get_value($manual, '/manual/resources/images', '');
+my $DownloadFolder = get_value($manual, '/manual/resources/downloads', '');
 
 # Find the index filename
 
-if ($manual->findvalue('count(/manual/index/filename)') != 1) {
-	die("No unique index found\n");
-}
-
-my $IndexFilename = $manual->findvalue('/manual/index/filename');
+my $IndexFilename = get_value($manual, '/manual/index/filename', 'index.html');
 
 # Identify the breadcrumb trail that we're going to use.
 
@@ -86,6 +81,31 @@ foreach my $chapter ($manual->findnodes('/manual/chapter')) {
 
 foreach my $index ($manual->findnodes('/manual/index')) {
 	process_index($index, $manual);
+}
+
+
+##
+# Return the value of an XML node.
+#
+# \param $object	The XML object to read from.
+# \param $name		The name of the node to be returned.
+# \param $default	A default value to return; omit to use undef.
+# \return		The value read.
+
+sub get_value {
+	my ($object, $name, $default) = @_;
+
+	if ($object->findvalue("count(" . $name . ")") > 1) {
+		die("No unique ", $name, " found.\n");
+	}
+
+	my $value = $object->findvalue($name);
+
+	if (!defined $value) {
+		$value = $default;
+	}
+
+	return $value;
 }
 
 
@@ -374,7 +394,7 @@ sub process_index {
 
 	foreach my $section ($index->findnodes('./section|./chapterlist')) {
 		if ($section->nodeName() eq "section") {
-			process_section($section, $file);
+			process_section($section, $index, $file);
 		} elsif ($section->nodeName() eq "chapterlist") {
 			generate_chapter_list($manual, $file);
 		}
@@ -446,7 +466,7 @@ sub process_chapter {
 	write_breadcrumb($file, $title);
 
 	foreach my $section ($chapter->findnodes('./section')) {
-		process_section($section, $file);
+		process_section($section, $chapter, $file);
 	}
 
 	my $previous = find_previous_chapter($chapter);
@@ -568,13 +588,37 @@ sub get_chapter_title {
 
 
 ##
+# Return the local resource folder for a chapter or index.
+#
+# \param $chapter	The chapter to return the folder for.
+# \param $resource	The resource folder of interest.
+# \return		The folder name, or '' if unavailable.
+
+sub get_chapter_resource_folder {
+	my ($chapter, $resource) = @_;
+
+	validate_object_type($chapter, "chapter", "index");
+
+	my $folder = '';
+
+	if ($resource eq 'images') {
+		$folder = get_value($chapter, './resources/images', '');
+	} elsif ($resource eq 'downloads') {
+		$folder = get_value($chapter, './resources/downloads', '');
+	}
+
+	return $folder;
+}
+
+##
 # Process a section object and write it to the output.
 #
 # \param $section	The section object to be processed.
+# \param $chapter	The parent chapter or index.
 # \param $file		The file to write output to.
 
 sub process_section {
-	my ($section, $file) = @_;
+	my ($section, $chapter, $file) = @_;
 
 	my $title = $section->findvalue('./title');
 
@@ -600,9 +644,9 @@ sub process_section {
 		} elsif ($block->nodeName() eq "code") {
 			process_code($block, $file);
 		} elsif ($block->nodeName() eq "image") {
-			process_image($block, $file);
+			process_image($block, $chapter, $file);
 		} elsif ($block->nodeName() eq "download") {
-			process_download($block, $file);
+			process_download($block, $chapter, $file);
 		}
 	}
 }
@@ -779,10 +823,11 @@ sub process_code {
 # Process an image object and write it to the output.
 #
 # \param $image		The image object to be processed.
+# \param $chapter	The parent chapter or index.
 # \param $file		The file to write output to.
 
 sub process_image {
-	my ($image, $file) = @_;
+	my ($image, $chapter, $file) = @_;
 
 	my $imagefile = $image->findvalue('./@file');
 
@@ -797,7 +842,7 @@ sub process_image {
 	}
 
 	my $convert = Image::Magick->new;
-	my $x = $convert->ReadImage(File::Spec->catfile($ImageFolder, $imagefile));
+	my $x = $convert->ReadImage(File::Spec->catfile($ImageFolder, get_chapter_resource_folder($chapter, 'images'), $imagefile));
 	if ($x) {
 		die $x."\n";
 	}
@@ -835,10 +880,11 @@ sub process_image {
 # Process a download object and write it to the output.
 #
 # \param $download	The download object to be processed.
+# \param $chapter	The parent chapter or index.
 # \param $file		The file to write output to.
 
 sub process_download {
-	my ($download, $file) = @_;
+	my ($download, $chapter, $file) = @_;
 
 	my $downloadfile = $download->findvalue('./@file');
 
@@ -858,7 +904,7 @@ sub process_download {
 		$title = $downloadfile;
 	}
 
-	my $fileinfo = stat(File::Spec->catfile($DownloadFolder, $downloadfile));
+	my $fileinfo = stat(File::Spec->catfile($DownloadFolder, get_chapter_resource_folder($chapter, 'downloads'), $downloadfile));
 
 	if (!defined $fileinfo) {
 		die "Couldn't find download file ", $downloadfile, "\n";
@@ -901,7 +947,9 @@ sub process_download {
 	print $file " <a href=\"", File::Spec::Unix->catfile($OutputDownloadFolder, $downloadfile),"\">", $title,"</a><br>\n";
 	print $file get_filesize($filesize), " | ", get_date(localtime($filedate)), $compatibility, "</p>\n\n";
 
-	copy(File::Spec->catfile($DownloadFolder, $downloadfile), File::Spec->catfile($OutputFolder, $OutputDownloadFolder, $downloadfile)) or die "Failed to copy file ", $downloadfile;
+	copy(File::Spec->catfile($DownloadFolder, get_chapter_resource_folder($chapter, 'downloads'), $downloadfile),
+			File::Spec->catfile($OutputFolder, $OutputDownloadFolder, $downloadfile))
+			or die "Failed to copy file ", $downloadfile;
 }
 
 
@@ -975,3 +1023,4 @@ sub validate_object_type {
 		die "ID in invalid object ".$object->nodeName()."\n";
 	}
 }
+
