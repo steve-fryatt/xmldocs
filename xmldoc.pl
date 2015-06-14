@@ -667,10 +667,12 @@ sub process_text {
 	);
 
 	my %styles = (
+		'command' => 'command',
 		'const' => 'code',
 		'event' => 'name',
 		'file' => 'filename',
 		'function' => 'code',
+		'intro' => 'introduction',
 		'menu' => 'name',
 		'message' => 'name',
 		'name' => 'name',
