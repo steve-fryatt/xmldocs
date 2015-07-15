@@ -853,6 +853,13 @@ sub process_image {
 		}
 	}
 
+	my $ininfo = stat(File::Spec->catfile($ImageFolder, get_chapter_resource_folder($chapter, 'images'), $imagefile));
+	my $outinfo = stat(File::Spec->catfile($OutputFolder, $OutputImageFolder, $imagefile));
+
+	if (!defined $ininfo) {
+		die "Couldn't find imagefile file ", $imagefile, "\n";
+	}
+
 	my $convert = Image::Magick->new;
 	my $x = $convert->ReadImage(File::Spec->catfile($ImageFolder, get_chapter_resource_folder($chapter, 'images'), $imagefile));
 	if ($x) {
@@ -864,9 +871,11 @@ sub process_image {
 		die $x."\n";
 	}
 
-	$x = $convert->Write(File::Spec->catfile($OutputFolder, $OutputImageFolder, $imagefile));
-	if ($x) {
-		die $x."\n";
+	if (!defined($outinfo) || $ininfo->mtime > $outinfo->mtime) {
+		$x = $convert->Write(File::Spec->catfile($OutputFolder, $OutputImageFolder, $imagefile));
+		if ($x) {
+			die $x."\n";
+		}
 	}
 
 	my ($width, $height) = $convert->Get('width', 'height');
