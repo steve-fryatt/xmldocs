@@ -123,7 +123,7 @@ sub write_header {
 
 	print $file "<html>\n<head>\n";
 	print $file "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">\n";
-	print $file "<link rel=\"stylesheet\" type=\"text/css\" href=\"../base.css\">\n";
+	print $file "<link rel=\"stylesheet\" type=\"text/css\" href=\"../../style/base.css\">\n";
 	if (defined $chapter && $chapter ne "") {
 		print $file "<title>", $ManualTitle, " &ndash; ", $chapter, "</title>\n</head>\n";
 	} else {
@@ -714,6 +714,8 @@ sub process_text {
 			} else {
 				print $file $chunk->to_literal;
 			}
+		} elsif ($chunk->nodeType() == XML_COMMENT_NODE) {
+			# Ignore comments.
 		} else {
 			print $file "(unknown chunk ", $chunk->nodeType(), ")";
 		}
