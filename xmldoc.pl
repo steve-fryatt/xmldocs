@@ -676,6 +676,7 @@ sub process_text {
 		'maths' => 'maths',
 		'menu' => 'name',
 		'message' => 'name',
+		'mouse' => 'mouse',
 		'name' => 'name',
 		'swi' => 'name',
 		'type' => 'name',
