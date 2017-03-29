@@ -945,8 +945,6 @@ sub process_download {
 	my $destinationfile = (File::Spec->catfile($OutputFolder, $OutputDownloadFolder, $downloadfile));
 	$destinationfile .= ".zip";
 
-	print "Creating destination file $destinationfile\n";
-
 	build_zip_file($destinationfile, $chapterfolder, $commonfolder);
 
 	my $fileinfo = stat($destinationfile);
@@ -1015,16 +1013,16 @@ sub build_zip_file
 
 	if (defined $zipinfo) {
 		if ($zipinfo->mtime >= $source_date) {
-			print "Zip archive $destination already up to date.\n";
+#			print "Zip archive $destination already up to date.\n";
 			return;
 		}
 
-		print "Zip archive $destination to be deleted.\n";
+#		print "Zip archive $destination to be deleted.\n";
 
 		unlink $destination;
 	}
 
-	print "Zip archive $destination to be (re-)created.\n";
+#	print "Zip archive $destination to be (re-)created.\n";
 
 	# Find the path to the GCCSDK implementation of Zip.
 
@@ -1048,11 +1046,13 @@ sub build_zip_file
 
 		while (my $object = readdir($dir)) {
 			if ($object eq '.' || $object eq '..' || $object eq '.svn') {
-				print "Skipping $object\n";
 				next;
 			}
 
-			print `$zip -x "*/.svn/*" -r -, -9 $destination $object`;
+			my $result = `$zip -x "*/.svn/*" -r -, -9 $destination $object`;
+			if (defined $? && $? != 0) {
+				die "$result\n";
+			}
 		}
 
 		closedir($dir);
@@ -1061,6 +1061,8 @@ sub build_zip_file
 
 		chdir $cwd;
 	}
+
+	return;
 }
 
 
