@@ -7,6 +7,7 @@ use POSIX;
 use XML::LibXML;
 use Image::Magick;
 use File::stat;
+use File::Find::Rule;
 use File::Copy;
 use File::Path qw/ make_path remove_tree /;
 use File::Spec;
@@ -45,6 +46,7 @@ my $ManualTitle = get_value($manual, '/manual/title', 'Undefined');
 
 my $ImageFolder = get_value($manual, '/manual/resources/images', '');
 my $DownloadFolder = get_value($manual, '/manual/resources/downloads', '');
+my $CommonDownloadFolder = get_value($manual, '/manual/resources/common', '');
 
 # Find the index filename
 
@@ -921,17 +923,36 @@ sub process_download {
 	} else {
 		$caption = "Download";
 	}
-	
+
+	my $chapterfolder = File::Spec->catfile($DownloadFolder, get_chapter_resource_folder($chapter, 'downloads'), $downloadfile);
+
+	if (!-d $chapterfolder) {
+		die "Couldn't find chapter download folder ", $downloadfile, "\n";
+	}
+
+	my $commonfolder = File::Spec->catfile($DownloadFolder, $CommonDownloadFolder);
+
+	if (!-d $commonfolder) {
+		die "Couldn't find common download folder ", $CommonDownloadFolder, "\n";
+	}
+
 	if (defined $download->findvalue('./@title') && $download->findvalue('./@title') ne "") {
 		$title = $download->findvalue('./@title');
 	} else {
 		$title = $downloadfile;
 	}
 
-	my $fileinfo = stat(File::Spec->catfile($DownloadFolder, get_chapter_resource_folder($chapter, 'downloads'), $downloadfile));
+	my $destinationfile = (File::Spec->catfile($OutputFolder, $OutputDownloadFolder, $downloadfile));
+	$destinationfile .= ".zip";
+
+	print "Creating destination file $destinationfile\n";
+
+	build_zip_file($destinationfile, $chapterfolder, $commonfolder);
+
+	my $fileinfo = stat($destinationfile);
 
 	if (!defined $fileinfo) {
-		die "Couldn't find download file ", $downloadfile, "\n";
+		die "Couldn't find download file ", $destinationfile, "\n";
 	}
 
 	my $filesize = $fileinfo->size;
@@ -968,12 +989,137 @@ sub process_download {
 	if (defined $id) {
 		print $file "</a>";
 	}
-	print $file " <a href=\"", File::Spec::Unix->catfile($OutputDownloadFolder, $downloadfile),"\">", $title,"</a><br>\n";
+	print $file " <a href=\"", File::Spec::Unix->catfile($OutputDownloadFolder, $downloadfile),".zip\">", $title,"</a><br>\n";
 	print $file get_filesize($filesize), " | ", get_date(localtime($filedate)), $compatibility, "</p>\n\n";
+}
 
-	copy(File::Spec->catfile($DownloadFolder, get_chapter_resource_folder($chapter, 'downloads'), $downloadfile),
-			File::Spec->catfile($OutputFolder, $OutputDownloadFolder, $downloadfile))
-			or die "Failed to copy file ", $downloadfile;
+
+##
+# Build a zip file from a set of source folders.
+#
+# \param $destination	The destination zip archive.
+# \param @sources	An array of source folders.
+
+sub build_zip_file
+{
+	my ($destination, @sources) = @_;
+
+	# Get the most recent modification date for the source files.
+
+	my $source_date = get_file_set_date(@sources);
+
+	# See if the target exists and, if it does, whether any of the source
+	# files are newer than it is.
+
+	my $zipinfo = stat($destination);
+
+	if (defined $zipinfo) {
+		if ($zipinfo->mtime >= $source_date) {
+			print "Zip archive $destination already up to date.\n";
+			return;
+		}
+
+		print "Zip archive $destination to be deleted.\n";
+
+		unlink $destination;
+	}
+
+	print "Zip archive $destination to be (re-)created.\n";
+
+	# Find the path to the GCCSDK implementation of Zip.
+
+	my $zip = File::Spec->catfile($ENV{GCCSDK_INSTALL_ENV}, "bin/zip");
+
+	# Get a fully-specified filename for the destination zip file.
+
+	$destination = File::Spec->catfile(getcwd, $destination);
+
+	# Process each source folder into the archive. 
+
+	foreach my $folder (@sources) {
+		# Set the working directory to the source folder.
+
+		my $cwd = getcwd;
+		chdir $folder;
+
+		# Add each file or folder in the source folder to the archive.
+
+		opendir(my $dir, '.') or die $!;
+
+		while (my $object = readdir($dir)) {
+			if ($object eq '.' || $object eq '..' || $object eq '.svn') {
+				print "Skipping $object\n";
+				next;
+			}
+
+			print `$zip -x "*/.svn/*" -r -, -9 $destination $object`;
+		}
+
+		closedir($dir);
+
+		# Return to the original working directory.
+
+		chdir $cwd;
+	}
+}
+
+
+##
+# Return the date of the newest file found in one or more locations
+#
+# \param $folders	An array of the folders to search.
+# \return		The newest file modification date.
+
+sub get_file_set_date
+{
+	my (@folders) = @_;
+
+	# Build a list of objects in all of the source folders.
+
+	my @files = ();
+
+	foreach my $folder (@folders) {
+		@files = (@files, get_file_set($folder));
+	}
+
+	# Test the date of each object, and find the newest.
+
+	my $newest = 0;
+
+	foreach my $file (@files) {
+		my $fileinfo = stat($file);
+
+		if (!defined $fileinfo) {
+			die "Couldn't find file ", $file, "\n";
+		}
+
+		my $filesize = $fileinfo->size;
+		my $filedate = $fileinfo->mtime;
+
+		if ($filedate > $newest) {
+			$newest = $filedate;
+		}
+	}
+
+	return $newest;
+}
+
+
+##
+# Get a list of the files contained in a folder.
+#
+# \param $folder	The folder to search in.
+# \return		An array of relative file names.
+
+sub get_file_set
+{
+	my ($folder) = @_;
+
+	my $find_rule = File::Find::Rule->new;
+	$find_rule->or($find_rule->new->directory->name('.svn')->prune->discard, $find_rule->new);
+	my @files = $find_rule->in($folder);
+
+	return @files;
 }
 
 
