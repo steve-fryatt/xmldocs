@@ -30,6 +30,12 @@ my $manual = $parser->parse_file($filename);
 
 my @Time = localtime();
 
+# Track HTML files, images and files.
+
+my %HtmlList;
+my %ImageList;
+my %DownloadList;
+
 # Locate the icon details
 
 my %IconDetails;
@@ -85,6 +91,9 @@ foreach my $index ($manual->findnodes('/manual/index')) {
 	process_index($index, $manual);
 }
 
+remove_obsolete_files(\%HtmlList, $OutputFolder);
+remove_obsolete_files(\%ImageList, File::Spec->catfile($OutputFolder, $OutputImageFolder));
+remove_obsolete_files(\%DownloadList, File::Spec->catfile($OutputFolder, $OutputDownloadFolder));
 
 ##
 # Return the value of an XML node.
@@ -386,6 +395,10 @@ sub process_index {
 
 	my $filename = File::Spec->catfile($OutputFolder, get_chapter_filename($index));
 
+	# Check that we haven't already tried to write a chapter of the same name.
+
+	add_file_record(\%HtmlList, $filename, "chapter");
+
 	print "Writing Index to ", $filename, "...\n";
 
 	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
@@ -455,7 +468,15 @@ sub generate_chapter_list {
 sub process_chapter {
 	my ($chapter, $number) = @_;
 
+	# Get the relative file name for the chapter.
+
 	my $filename = File::Spec->catfile($OutputFolder, get_chapter_filename($chapter));
+
+	# Check that we haven't already tried to write a chapter of the same name.
+
+	add_file_record(\%HtmlList, $filename, "chapter");
+
+	# Start to write the chapter.
 
 	print "Writing Chapter ", $number, " to ", $filename, "...\n";
 
@@ -859,15 +880,22 @@ sub process_image {
 		}
 	}
 
-	my $ininfo = stat(File::Spec->catfile($ImageFolder, get_chapter_resource_folder($chapter, 'images'), $imagefile));
-	my $outinfo = stat(File::Spec->catfile($OutputFolder, $OutputImageFolder, $imagefile));
+	my $infile = File::Spec->catfile($ImageFolder, get_chapter_resource_folder($chapter, 'images'), $imagefile);
+	my $outfile = File::Spec->catfile($OutputFolder, $OutputImageFolder, $imagefile);
+
+	my $ininfo = stat($infile);
+	my $outinfo = stat($outfile);
+
+	# Check that we haven't already tried to write an image of the same name.
+
+	add_file_record(\%ImageList, $outfile, "image");
 
 	if (!defined $ininfo) {
 		die "Couldn't find imagefile file ", $imagefile, "\n";
 	}
 
 	my $convert = Image::Magick->new;
-	my $x = $convert->ReadImage(File::Spec->catfile($ImageFolder, get_chapter_resource_folder($chapter, 'images'), $imagefile));
+	my $x = $convert->ReadImage($infile);
 	if ($x) {
 		die $x."\n";
 	}
@@ -878,7 +906,7 @@ sub process_image {
 	}
 
 	if (!defined($outinfo) || $ininfo->mtime > $outinfo->mtime) {
-		$x = $convert->Write(File::Spec->catfile($OutputFolder, $OutputImageFolder, $imagefile));
+		$x = $convert->Write($outfile);
 		if ($x) {
 			die $x."\n";
 		}
@@ -945,6 +973,10 @@ sub process_download {
 
 	my $destinationfile = (File::Spec->catfile($OutputFolder, $OutputDownloadFolder, $downloadfile));
 	$destinationfile .= ".zip";
+
+	# Check that we haven't already tried to write a download of the same name.
+
+	add_file_record(\%DownloadList, $destinationfile, "download");
 
 	build_zip_file($destinationfile, $chapterfolder, $commonfolder);
 
@@ -1197,3 +1229,52 @@ sub validate_object_type {
 	}
 }
 
+
+##
+# Add a filename to a hash for reference of the objects written, erroring
+# if a duplicate is encountered.
+#
+# \param $files		Reference to the file name index hash.
+# \param $filename	The filename to be added.
+# \param $type		The type of object to be added, in human-readable form.
+sub add_file_record {
+	my ($files, $filename, $type) = @_;
+	
+	# Check that we haven't already tried to write a file of the same name.
+
+	if (exists $$files{$filename}) {
+		die "Duplicate $type file name $filename\n";
+	}
+
+	# Record the name.
+
+	$$files{$filename} = 1;
+}
+
+
+##
+# Scan the files in a folder and compare each to the names in a hash of
+# files, deleting any which aren't referenced.
+#
+# \param $files		Reference to the file name index hash.
+# \param $folder	The folder containing the files.
+sub remove_obsolete_files {
+	my ($files, $folder) = @_;
+
+	opendir(my $dir, $folder) or die $!;
+
+	while (my $object = readdir($dir)) {
+		my $file = File::Spec->catfile($folder, $object);
+
+		if (not -f $file) {
+			next;
+		}
+
+		if (not exists $$files{$file}) {
+			print "Removing unused file $file...\n";
+			unlink $file;
+		}
+	}
+
+	closedir($dir);
+}
