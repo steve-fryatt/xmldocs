@@ -440,7 +440,7 @@ sub generate_chapter_list {
 		print $file "\n<dt><a href=\"",
 				get_chapter_filename($chapter),
 				"\">",
-				get_chapter_title($chapter, $number),
+				get_chapter_title($chapter, $number, TRUE),
 				"</a></dt>\n";
 		my @summaries = $chapter->findnodes('./summary');
 
@@ -482,7 +482,7 @@ sub process_chapter {
 
 	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
 
-	my $title = get_chapter_title($chapter, $number);
+	my $title = get_chapter_title($chapter, $number, TRUE);
 
 	write_header($file, $title);
 
@@ -501,7 +501,7 @@ sub process_chapter {
 			print $file "Previous: <a href=\"",
 					get_chapter_filename($previous),
 					"\">",
-					get_chapter_title($previous, $number - 1),
+					get_chapter_title($previous, $number - 1, FALSE),
 					"</a>";
 		}
 		if (defined $previous && defined $next) {
@@ -511,7 +511,7 @@ sub process_chapter {
 			print $file "Next: <a href=\"",
 					get_chapter_filename($next),
 					"\">",
-					get_chapter_title($next, $number + 1),
+					get_chapter_title($next, $number + 1, FALSE),
 					"</a>";
 		}
 		print $file "</p>\n\n";
@@ -593,17 +593,20 @@ sub get_chapter_filename {
 #
 # \param $chapter	The chapter to return the title for.
 # \param $number	The sequence number of the chapter in question.
+# \param $full		TRUE to prefix with Chapter <n>:
 # \return		The title to give to the chapter.
 
 sub get_chapter_title {
-	my ($chapter, $number) = @_;
+	my ($chapter, $number, $full) = @_;
 
 	validate_object_type($chapter, "chapter");
 
 	my $name = $chapter->findvalue('./title');
 
 	if (!defined $name || $name eq "") {
-		$name = "Chapter " . $number;
+		$name = "Chapter $number";
+	} elsif ($full == TRUE) {
+		$name = "Chapter $number: $name";
 	}
 
 	return $name;
