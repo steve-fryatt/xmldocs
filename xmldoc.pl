@@ -699,6 +699,7 @@ sub process_text {
 		'file' => 'filename',
 		'function' => 'code',
 		'intro' => 'introduction',
+		'icon' => 'icon',
 		'key' => 'key',
 		'maths' => 'maths',
 		'menu' => 'name',
