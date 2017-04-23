@@ -482,11 +482,12 @@ sub process_chapter {
 
 	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
 
-	my $title = get_chapter_title($chapter, $number, TRUE);
+	my $full_title = get_chapter_title($chapter, $number, TRUE);
+	my $short_title = get_chapter_title($chapter, $number, FALSE);
 
-	write_header($file, $title);
+	write_header($file, $full_title);
 
-	write_breadcrumb($file, $title);
+	write_breadcrumb($file, $short_title);
 
 	foreach my $section ($chapter->findnodes('./section')) {
 		process_section($section, $chapter, $file);
@@ -517,7 +518,7 @@ sub process_chapter {
 		print $file "</p>\n\n";
 	}
 
-	write_breadcrumb($file, $title);
+	write_breadcrumb($file, $short_title);
 
 	write_footer($file);
 
