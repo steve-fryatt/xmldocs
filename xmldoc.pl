@@ -911,6 +911,7 @@ sub process_image {
 	}
 
 	if (!defined($outinfo) || $ininfo->mtime > $outinfo->mtime) {
+		print "- Writing image $imagefile...\n";
 		$x = $convert->Write($outfile);
 		if ($x) {
 			die $x."\n";
@@ -1051,16 +1052,13 @@ sub build_zip_file
 
 	if (defined $zipinfo) {
 		if ($zipinfo->mtime >= $source_date) {
-#			print "Zip archive $destination already up to date.\n";
 			return;
 		}
-
-#		print "Zip archive $destination to be deleted.\n";
 
 		unlink $destination;
 	}
 
-#	print "Zip archive $destination to be (re-)created.\n";
+	print "- Writing archive $destination...\n";
 
 	# Find the path to the GCCSDK implementation of Zip.
 
