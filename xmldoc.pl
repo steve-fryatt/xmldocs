@@ -155,8 +155,8 @@ sub assemble_chapters {
 		}
 
 	#	foreach my $child ($chapter_content->findnodes('/manual/chapter')) {
-			$manual->adoptNode($child[0]);
-			$chapter->replaceNode($child[0]);
+	#	$manual->adoptNode($child[0]);
+		$chapter->replaceNode($child[0]);
 	#	}
 	}
 
