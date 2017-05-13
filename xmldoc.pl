@@ -26,6 +26,7 @@ my $MaxImageWidth = 500;
 
 my $parser = XML::LibXML->new();
 $parser->expand_entities(0);
+$parser->set_option('huge', 1);
 my $manual = $parser->parse_file($filename);
 
 my @Time = localtime();
@@ -53,10 +54,15 @@ my $ManualTitle = get_value($manual, '/manual/title', 'Undefined');
 my $ImageFolder = get_value($manual, '/manual/resources/images', '');
 my $DownloadFolder = get_value($manual, '/manual/resources/downloads', '');
 my $CommonDownloadFolder = get_value($manual, '/manual/resources/common', '');
+my $ChapterFolder = get_value($manual, '/manual/resources/chapters', '');
 
 # Find the index filename
 
 my $IndexFilename = get_value($manual, '/manual/index/filename', 'index.html');
+
+# Pull in any chapter file.
+
+assemble_chapters($manual);
 
 # Identify the breadcrumb trail that we're going to use.
 
@@ -117,6 +123,40 @@ sub get_value {
 	}
 
 	return $value;
+}
+
+
+##
+# Assemble sub chapters into the master DOM.
+#
+# \param $manual	The manual to assemble.
+
+sub assemble_chapters {
+	my ($manual) = @_;
+
+	foreach my $chapter ($manual->findnodes('/manual/chapter')) {
+		my $file = $chapter->findvalue('./@file');
+
+		if (!defined $file || $file eq "") {
+			next;
+		}
+
+		my $chapter_file = File::Spec->catfile($ChapterFolder, $file);
+
+		print "Pull in chapter ... $chapter_file\n";
+
+		my $chapter_content = $parser->parse_file($chapter_file);
+
+		my @child = $chapter_content->findnodes('/manual/chapter');
+		if (scalar @child != 1) {
+			die "Not exacltly one chapter in $file\n";
+		}
+
+		my $clone = $child[0]->cloneNode(1);
+		$chapter->replaceNode($clone);
+	}
+
+	$manual->toFile("dump.xml", 1);
 }
 
 
@@ -454,7 +494,6 @@ sub generate_chapter_list {
 	}
 
 	print $file "</dl>\n\n";
-
 }
 
 
@@ -842,6 +881,8 @@ sub process_code {
 	my ($fh, $filename) = tempfile("codeXXXXX");
 
 	print $fh $code->to_literal;
+
+	close $fh;
 
 	my $html = `source-highlight -i $filename --tab=8 --src-lang=$language --out-format=html-css --no-doc`;
 	chomp $html;
