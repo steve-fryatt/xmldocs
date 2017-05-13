@@ -728,6 +728,7 @@ sub process_text {
 	my ($text, $file) = @_;
 
 	my %tags = (
+		'cite' => 'cite',
 		'code' => 'code',
 		'em' => 'em'
 	);
