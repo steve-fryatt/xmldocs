@@ -145,8 +145,6 @@ sub assemble_chapters {
 
 		print "Pull in chapter ... $chapter_file\n";
 
-	#	my $chapter_parser = XML::LibXML->new();
-	#	$chapter_parser->expand_entities(0);
 		my $chapter_content = $parser->parse_file($chapter_file);
 
 		my @child = $chapter_content->findnodes('/manual/chapter');
@@ -154,10 +152,8 @@ sub assemble_chapters {
 			die "Not exacltly one chapter in $file\n";
 		}
 
-	#	foreach my $child ($chapter_content->findnodes('/manual/chapter')) {
-	#	$manual->adoptNode($child[0]);
-		$chapter->replaceNode($child[0]);
-	#	}
+		my $clone = $child[0]->cloneNode(1);
+		$chapter->replaceNode($clone);
 	}
 
 	$manual->toFile("dump.xml", 1);
