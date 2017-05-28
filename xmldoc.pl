@@ -707,6 +707,8 @@ sub process_section {
 			print $file "<p class=\"doc\">";
 			process_text($block, $file);
 			print $file "</p>\n\n";
+		} elsif ($block->nodeName() eq "table") {
+			process_table($block, $file);
 		} elsif ($block->nodeName() eq "code") {
 			process_code($block, $file);
 		} elsif ($block->nodeName() eq "image") {
@@ -852,6 +854,39 @@ sub create_link {
 	}
 
 	return "<a href=\"".$link->findvalue('./@href')."\" class=\"external\">".$link->to_literal."</a>";
+}
+
+
+##
+# Process a table object and write it to the output.
+#
+# \param $table		The table object to be processed.
+# \param $file		The file to write output to.
+
+sub process_table {
+	my ($table, $file) = @_;
+
+	print $file "<table>";
+
+	foreach my $chunk ($table->childNodes()) {
+		if ($chunk->nodeType() == XML_TEXT_NODE) {
+			print $file $chunk->to_literal;
+		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
+			if ($chunk->nodeName() eq "rows") {
+	#			print $file create_reference($chunk);
+			} elsif ($chunk->nodeName() eq "columns") {
+	#			print $file create_link($chunk);
+			} else {
+				print $file $chunk->to_literal;
+			}
+		} elsif ($chunk->nodeType() == XML_COMMENT_NODE) {
+			# Ignore comments.
+		} else {
+			print $file "(unknown chunk ", $chunk->nodeType(), ")";
+		}
+	}
+
+	print $file "</table>\n\n";
 }
 
 
