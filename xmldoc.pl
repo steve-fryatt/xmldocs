@@ -870,14 +870,18 @@ sub process_table {
 
 	foreach my $chunk ($table->childNodes()) {
 		if ($chunk->nodeType() == XML_TEXT_NODE) {
-			print $file $chunk->to_literal;
+			# print $file $chunk->to_literal;
 		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
-			if ($chunk->nodeName() eq "rows") {
-	#			print $file create_reference($chunk);
+			if ($chunk->nodeName() eq "row") {
+				print $file "<tr>";
+				process_table_row($chunk, $file);
+				print $file "</tr>\n";
 			} elsif ($chunk->nodeName() eq "columns") {
-	#			print $file create_link($chunk);
+				print $file "<tr>";
+				process_table_row($chunk, $file);
+				print $file "</tr>\n";
 			} else {
-				print $file $chunk->to_literal;
+				print $file "(unknown node ", $chunk->nodeName(), ")";
 			}
 		} elsif ($chunk->nodeType() == XML_COMMENT_NODE) {
 			# Ignore comments.
@@ -887,6 +891,35 @@ sub process_table {
 	}
 
 	print $file "</table>\n\n";
+}
+
+
+##
+# Process a table object and write it to the output.
+#
+# \param $row		The row object to be processed.
+# \param $file		The file to write output to.
+
+sub process_table_row {
+	my ($row, $file) = @_;
+
+	foreach my $chunk ($row->childNodes()) {
+		if ($chunk->nodeType() == XML_TEXT_NODE) {
+			print $file $chunk->to_literal;
+		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
+			if ($chunk->nodeName() eq "col") {
+				print $file "<td>";
+				process_text($chunk, $file);
+				print $file "</td>";
+			} else {
+				print $file $chunk->to_literal;
+			}
+		} elsif ($chunk->nodeType() == XML_COMMENT_NODE) {
+			# Ignore comments.
+		} else {
+			print $file "(unknown chunk ", $chunk->nodeType(), ")";
+		}
+	}
 }
 
 
