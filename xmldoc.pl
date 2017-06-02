@@ -340,12 +340,13 @@ sub link_document {
 		my $section_number = 1;
 		my $code_number = 1;
 		my $image_number = 1;
+		my $table_number = 1;
 		my $download_number = 1;
 
 		foreach my $section ($chapter->findnodes('./section')) {
 			store_object_id($section, $chapter, "Section " . $chapter_number . "." . $section_number);
 
-			foreach my $object ($section->findnodes('./code|./image|./download')) {
+			foreach my $object ($section->findnodes('./code|./image|./table|./download')) {
 				if ($object->nodeName() eq "code") {
 					if (store_object_id($object, $chapter, "Listing " . $chapter_number . "." . $code_number)) {
 						$code_number++;
@@ -353,6 +354,10 @@ sub link_document {
 				} elsif ($object->nodeName() eq "image") {
 					if (store_object_id($object, $chapter, "Figure " . $chapter_number . "." . $image_number)) {
 						$image_number++;
+					}
+				} elsif ($object->nodeName() eq "table") {
+					if (store_object_id($object, $chapter, "Table " . $chapter_number . "." . $table_number)) {
+						$table_number++;
 					}
 				} elsif ($object->nodeName() eq "download") {
 					if (store_object_id($object, $chapter, "Download " . $chapter_number . "." . $download_number)) {
@@ -866,19 +871,38 @@ sub create_link {
 sub process_table {
 	my ($table, $file) = @_;
 
-	print $file "<table>";
+	my $caption = undef;
+	my $id = get_object_id($table);
+
+	if (defined $id) {
+		$caption = $table->findvalue('./@name');
+		if (defined $table->findvalue('./@title') && $table->findvalue('./@title') ne "") {
+			$caption .= ": ".$table->findvalue('./@title');
+		}
+	}
+
+	my @columns = undef;
+
+	print $file "<div class=\"titled\">";
+	if (defined $id) {
+		print $file "<a name=\"", $id, "\">";
+	}
+	print $file "<table class=\"doc\">\n";
 
 	foreach my $chunk ($table->childNodes()) {
 		if ($chunk->nodeType() == XML_TEXT_NODE) {
 			# print $file $chunk->to_literal;
 		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
-			if ($chunk->nodeName() eq "row") {
+			if ($chunk->nodeName() eq "columns") {
+	#			if (defined(@columns)) {
+	#				die "Multiple column sets defined\n";
+	#			}
 				print $file "<tr>";
-				process_table_row($chunk, $file);
+				@columns = process_table_headings($chunk, $file);
 				print $file "</tr>\n";
-			} elsif ($chunk->nodeName() eq "columns") {
+			} elsif ($chunk->nodeName() eq "row") {
 				print $file "<tr>";
-				process_table_row($chunk, $file);
+				process_table_row($chunk, $file, @columns);
 				print $file "</tr>\n";
 			} else {
 				print $file "(unknown node ", $chunk->nodeName(), ")";
@@ -890,29 +914,92 @@ sub process_table {
 		}
 	}
 
-	print $file "</table>\n\n";
+	print $file "</table>";
+	if (defined $caption) {
+		print $file "\n<p class=\"title\">", $caption, "</p>";
+	};
+	if (defined $id) {
+		print $file "</a>";
+	}
+	print $file "</div>\n\n";
 }
 
 
 ##
-# Process a table object and write it to the output.
+# Process a reading row of a table object and write it to the output.
 #
 # \param $row		The row object to be processed.
 # \param $file		The file to write output to.
+# \return		The column definitions for the table.
+
+sub process_table_headings {
+	my ($row, $file) = @_;
+
+	my @columns = ();
+
+	foreach my $chunk ($row->childNodes()) {
+		if ($chunk->nodeType() == XML_TEXT_NODE) {
+			# print $file $chunk->to_literal;
+		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
+			if ($chunk->nodeName() eq "col") {
+				if (!defined $chunk->findvalue('./@align') || $chunk->findvalue('./@align') eq "") {
+					die "Missing external link.\n";
+				}
+
+				my $align = $chunk->findvalue('./@align');
+
+				if ($align ne "left" && $align ne "centre" && $align ne "right") {
+					die "Bad alignment: $align\n";
+				}
+
+				push(@columns, $align);
+
+				print $file "<th class=\"$align\">";
+				process_text($chunk, $file);
+				print $file "</th>";
+				
+			} else {
+	#			print $file $chunk->to_literal;
+			}
+		} elsif ($chunk->nodeType() == XML_COMMENT_NODE) {
+			# Ignore comments.
+		} else {
+			print $file "(unknown chunk ", $chunk->nodeType(), ")";
+		}
+	}
+
+	return @columns;
+}
+
+
+##
+# Process a standard row of a table object and write it to the output.
+#
+# \param $row		The row object to be processed.
+# \param $file		The file to write output to.
+# \param @columns	The column definitions for the table.
 
 sub process_table_row {
-	my ($row, $file) = @_;
+	my ($row, $file, @columns) = @_;
+
+	my $column = 0;
 
 	foreach my $chunk ($row->childNodes()) {
 		if ($chunk->nodeType() == XML_TEXT_NODE) {
 			print $file $chunk->to_literal;
 		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
 			if ($chunk->nodeName() eq "col") {
-				print $file "<td>";
+				if ($column >= scalar @columns) {
+					die "Too many columns\n";
+				}
+
+				print $file "<td class=\"".$columns[$column]."\">";
 				process_text($chunk, $file);
 				print $file "</td>";
+
+				$column++;
 			} else {
-				print $file $chunk->to_literal;
+	#			print $file $chunk->to_literal;
 			}
 		} elsif ($chunk->nodeType() == XML_COMMENT_NODE) {
 			# Ignore comments.
@@ -1305,7 +1392,7 @@ sub write_icon_image {
 sub get_object_id {
 	my ($object) = @_;
 
-	validate_object_type($object, "reference", "index", "chapter", "section", "code", "image", "download");
+	validate_object_type($object, "reference", "index", "chapter", "section", "code", "image", "table", "download");
 
 	my $id = $object->findvalue('./@id');
 
