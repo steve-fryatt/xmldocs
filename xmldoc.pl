@@ -12,6 +12,7 @@ use File::Copy;
 use File::Path qw/ make_path remove_tree /;
 use File::Spec;
 use File::Temp qw/ tempfile tempdir /;
+use HTML::Entities;
 
 use constant TRUE	=> 1;
 use constant FALSE	=> 0;
@@ -756,10 +757,15 @@ sub process_text {
 		'name' => 'name',
 		'swi' => 'name',
 		'type' => 'name',
-		'variable' => 'code'
+		'variable' => 'code',
+		'window' => 'window'
 	);
 
 	my %entities = (
+		'amp' => '&amp;',
+		'lt' => '&lt;',
+		'gt' => '&gt;',
+		'quot' => '&quot;',
 		'ldquo' => '&ldquo;',
 		'lsquo' => '&lsquo;',
 		'minus' => '&minus;',
@@ -772,24 +778,28 @@ sub process_text {
 
 	foreach my $chunk ($text->childNodes()) {
 		if ($chunk->nodeType() == XML_TEXT_NODE) {
-			print $file $chunk->to_literal;
+			print $file encode_entities($chunk->to_literal);
 		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
 			if (exists $styles{$chunk->nodeName()}) {
-				print $file "<span class=\"", $styles{$chunk->nodeName()}, "\">", $chunk->to_literal, "</span>";
+				print $file "<span class=\"", $styles{$chunk->nodeName()}, "\">";
+				process_text($chunk, $file);
+				print $file "</span>";
 			} elsif (exists $tags{$chunk->nodeName()}) {
-				print $file "<", $tags{$chunk->nodeName()}, ">", $chunk->to_literal, "</", $tags{$chunk->nodeName()}, ">";
+				print $file "<", $tags{$chunk->nodeName()}, ">";
+				process_text($chunk, $file);
+				print $file "</", $tags{$chunk->nodeName()}, ">";
 			} elsif ($chunk->nodeName() eq "reference") {
 				print $file create_reference($chunk);
 			} elsif ($chunk->nodeName() eq "link") {
 				print $file create_link($chunk);
 			} else {
-				print $file $chunk->to_literal;
+				print $file encode_entities($chunk->to_literal);
 			}
 		} elsif ($chunk->nodeType() == XML_ENTITY_REF_NODE) {
 			if (exists $entities{$chunk->nodeName()}) {
 				print $file $entities{$chunk->nodeName()};
 			} else {
-				print $file $chunk->to_literal;
+				print $file encode_entities($chunk->to_literal);
 			}
 		} elsif ($chunk->nodeType() == XML_COMMENT_NODE) {
 			# Ignore comments.
@@ -986,7 +996,7 @@ sub process_table_row {
 
 	foreach my $chunk ($row->childNodes()) {
 		if ($chunk->nodeType() == XML_TEXT_NODE) {
-			print $file $chunk->to_literal;
+			print $file encode_entities($chunk->to_literal);
 		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
 			if ($chunk->nodeName() eq "col") {
 				if ($column >= scalar @columns) {
