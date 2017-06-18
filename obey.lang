@@ -4,8 +4,8 @@ comment start "\|"
 
 string delim "\"" "\""
 
-keyword = "Error|RMEnsure|RMLoad",
-"Run"
+keyword = "Error|IconSprites|If|Obey|RMEnsure|RMLoad|RMRun|Run|Set|Then",
+"WimpSlot"
 
 #function = '(PROC|FN)([[:alpha:]]|_)[[:word:]]*(?=[[:blank:]]*\()'
 
