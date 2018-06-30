@@ -3,23 +3,25 @@
 use strict;
 use warnings;
 
-use POSIX;
 use XML::LibXML;
 use Image::Magick;
-use File::stat;
 use File::Find::Rule;
 use File::Copy;
 use File::Path qw/ make_path remove_tree /;
 use File::Spec;
+use File::stat;
 use File::Temp qw/ tempfile tempdir /;
 use HTML::Entities;
+
+use BuildZip;
+use FileHash;
 
 use constant TRUE	=> 1;
 use constant FALSE	=> 0;
 
 my $filename = "wimp.xml";
 
-my $OutputFolder = "output/";
+my $OutputFolder = "dumpout/";
 my $OutputImageFolder = "images/";
 my $OutputDownloadFolder = "files/";
 
@@ -34,9 +36,9 @@ my @Time = localtime();
 
 # Track HTML files, images and files.
 
-my %HtmlList;
-my %ImageList;
-my %DownloadList;
+my $HtmlList = FileHash->new();
+my $ImageList = FileHash->new();
+my $DownloadList = FileHash->new();
 
 # Locate the icon details
 
@@ -98,9 +100,9 @@ foreach my $index ($manual->findnodes('/manual/index')) {
 	process_index($index, $manual);
 }
 
-remove_obsolete_files(\%HtmlList, $OutputFolder);
-remove_obsolete_files(\%ImageList, File::Spec->catfile($OutputFolder, $OutputImageFolder));
-remove_obsolete_files(\%DownloadList, File::Spec->catfile($OutputFolder, $OutputDownloadFolder));
+$HtmlList->remove_obsolete_files($OutputFolder);
+$ImageList->remove_obsolete_files(File::Spec->catfile($OutputFolder, $OutputImageFolder));
+$DownloadList->remove_obsolete_files(File::Spec->catfile($OutputFolder, $OutputDownloadFolder));
 
 ##
 # Return the value of an XML node.
@@ -443,7 +445,7 @@ sub process_index {
 
 	# Check that we haven't already tried to write a chapter of the same name.
 
-	add_file_record(\%HtmlList, $filename, "chapter");
+	$HtmlList->add_file_record($filename, "chapter");
 
 	print "Writing Index to ", $filename, "...\n";
 
@@ -519,7 +521,7 @@ sub process_chapter {
 
 	# Check that we haven't already tried to write a chapter of the same name.
 
-	add_file_record(\%HtmlList, $filename, "chapter");
+	$HtmlList->add_file_record($filename, "chapter");
 
 	# Start to write the chapter.
 
@@ -1100,7 +1102,7 @@ sub process_image {
 
 	# Check that we haven't already tried to write an image of the same name.
 
-	add_file_record(\%ImageList, $outfile, "image");
+	$ImageList->add_file_record($outfile, "image");
 
 	if (!defined $ininfo) {
 		die "Couldn't find imagefile file ", $imagefile, "\n";
@@ -1189,9 +1191,9 @@ sub process_download {
 
 	# Check that we haven't already tried to write a download of the same name.
 
-	add_file_record(\%DownloadList, $destinationfile, "download");
+	$DownloadList->add_file_record($destinationfile, "download");
 
-	build_zip_file($destinationfile, $chapterfolder, $commonfolder);
+	BuildZip::build_zip_file($destinationfile, $chapterfolder, $commonfolder);
 
 	my $fileinfo = stat($destinationfile);
 
@@ -1235,136 +1237,6 @@ sub process_download {
 	}
 	print $file " <a href=\"", File::Spec::Unix->catfile($OutputDownloadFolder, $downloadfile),".zip\">", $title,"</a><br>\n";
 	print $file get_filesize($filesize), " | ", get_date(localtime($filedate)), $compatibility, "</p>\n\n";
-}
-
-
-##
-# Build a zip file from a set of source folders.
-#
-# \param $destination	The destination zip archive.
-# \param @sources	An array of source folders.
-
-sub build_zip_file
-{
-	my ($destination, @sources) = @_;
-
-	# Get the most recent modification date for the source files.
-
-	my $source_date = get_file_set_date(@sources);
-
-	# See if the target exists and, if it does, whether any of the source
-	# files are newer than it is.
-
-	my $zipinfo = stat($destination);
-
-	if (defined $zipinfo) {
-		if ($zipinfo->mtime >= $source_date) {
-			return;
-		}
-
-		unlink $destination;
-	}
-
-	print "- Writing archive $destination...\n";
-
-	# Find the path to the GCCSDK implementation of Zip.
-
-	my $zip = File::Spec->catfile($ENV{GCCSDK_INSTALL_ENV}, "bin/zip");
-
-	# Get a fully-specified filename for the destination zip file.
-
-	$destination = File::Spec->catfile(getcwd, $destination);
-
-	# Process each source folder into the archive. 
-
-	foreach my $folder (@sources) {
-		# Set the working directory to the source folder.
-
-		my $cwd = getcwd;
-		chdir $folder;
-
-		# Add each file or folder in the source folder to the archive.
-
-		opendir(my $dir, '.') or die $!;
-
-		while (my $object = readdir($dir)) {
-			if ($object eq '.' || $object eq '..' || $object eq '.svn') {
-				next;
-			}
-
-			my $result = `$zip -x "*/.svn/*" -r -, -9 $destination $object`;
-			if (defined $? && $? != 0) {
-				die "$result\n";
-			}
-		}
-
-		closedir($dir);
-
-		# Return to the original working directory.
-
-		chdir $cwd;
-	}
-
-	return;
-}
-
-
-##
-# Return the date of the newest file found in one or more locations
-#
-# \param $folders	An array of the folders to search.
-# \return		The newest file modification date.
-
-sub get_file_set_date
-{
-	my (@folders) = @_;
-
-	# Build a list of objects in all of the source folders.
-
-	my @files = ();
-
-	foreach my $folder (@folders) {
-		@files = (@files, get_file_set($folder));
-	}
-
-	# Test the date of each object, and find the newest.
-
-	my $newest = 0;
-
-	foreach my $file (@files) {
-		my $fileinfo = stat($file);
-
-		if (!defined $fileinfo) {
-			die "Couldn't find file ", $file, "\n";
-		}
-
-		my $filesize = $fileinfo->size;
-		my $filedate = $fileinfo->mtime;
-
-		if ($filedate > $newest) {
-			$newest = $filedate;
-		}
-	}
-
-	return $newest;
-}
-
-
-##
-# Get a list of the files contained in a folder.
-#
-# \param $folder	The folder to search in.
-# \return		An array of relative file names.
-
-sub get_file_set
-{
-	my ($folder) = @_;
-
-	my $find_rule = File::Find::Rule->new;
-	$find_rule->or($find_rule->new->directory->name('.svn')->prune->discard, $find_rule->new);
-	my @files = $find_rule->in($folder);
-
-	return @files;
 }
 
 
@@ -1439,52 +1311,3 @@ sub validate_object_type {
 	}
 }
 
-
-##
-# Add a filename to a hash for reference of the objects written, erroring
-# if a duplicate is encountered.
-#
-# \param $files		Reference to the file name index hash.
-# \param $filename	The filename to be added.
-# \param $type		The type of object to be added, in human-readable form.
-sub add_file_record {
-	my ($files, $filename, $type) = @_;
-	
-	# Check that we haven't already tried to write a file of the same name.
-
-	if (exists $$files{$filename}) {
-		die "Duplicate $type file name $filename\n";
-	}
-
-	# Record the name.
-
-	$$files{$filename} = 1;
-}
-
-
-##
-# Scan the files in a folder and compare each to the names in a hash of
-# files, deleting any which aren't referenced.
-#
-# \param $files		Reference to the file name index hash.
-# \param $folder	The folder containing the files.
-sub remove_obsolete_files {
-	my ($files, $folder) = @_;
-
-	opendir(my $dir, $folder) or die $!;
-
-	while (my $object = readdir($dir)) {
-		my $file = File::Spec->catfile($folder, $object);
-
-		if (not -f $file) {
-			next;
-		}
-
-		if (not exists $$files{$file}) {
-			print "Removing unused file $file...\n";
-			unlink $file;
-		}
-	}
-
-	closedir($dir);
-}
