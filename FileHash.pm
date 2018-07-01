@@ -5,7 +5,6 @@ package FileHash;
 use strict;
 use warnings;
 
-
 ##
 # Construct a new FileHash instance.
 sub new {
@@ -15,7 +14,7 @@ sub new {
 
 	bless($self, $class);
 
-	$self->{filelist} = {}; 
+	$self->{files} = {}; 
 
 	return $self;
 }
@@ -32,13 +31,13 @@ sub add_file_record {
 	
 	# Check that we haven't already tried to write a file of the same name.
 
-	if (exists $self->{filelist}{$filename}) {
+	if (exists $self->{files}{$filename}) {
 		die "Duplicate $type file name $filename\n";
 	}
 
 	# Record the name.
 
-	$self->{filelist}{$filename} = 1;
+	$self->{files}{$filename} = 1;
 }
 
 
@@ -59,7 +58,7 @@ sub remove_obsolete_files {
 			next;
 		}
 
-		if (not exists $self->{filelist}{$file}) {
+		if (not exists $self->{files}{$file}) {
 			print "Removing unused file $file...\n";
 			unlink $file;
 		}
