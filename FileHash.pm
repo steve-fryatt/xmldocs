@@ -1,9 +1,12 @@
 #!/usr/bin/perl -w
 
 package FileHash;
+#use Moose;
 
 use strict;
 use warnings;
+
+#has 'files' => (is => 'r', isa => 'HashRef', default => {});
 
 ##
 # Construct a new FileHash instance.

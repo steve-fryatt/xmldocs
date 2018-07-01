@@ -5,6 +5,11 @@ package ObjectIDs;
 use strict;
 use warnings;
 
+use XML::LibXML;
+
+use constant TRUE	=> 1;
+use constant FALSE	=> 0;
+
 ##
 # Construct a new Object IDs instance.
 #
@@ -73,7 +78,7 @@ sub link_document {
 					}
 				}
 			}
-		
+
 			$section_number++;
 		}
 	}
@@ -94,11 +99,11 @@ sub link_document {
 sub store_object_id {
 	my ($self, $object, $chapter, $name) = @_;
 
-	my $id = get_object_id($object);
+	my $id = $self->get_object_id($object);
 	if (!defined $id) {
 		return FALSE;
 	}
-	
+
 	if (exists $self->{object_ids}{$id}) {
 		die "Duplicate object id ", $id, ".\n";
 	}
@@ -123,7 +128,7 @@ sub store_object_id {
 sub object_exists {
 	my ($self, $id) = @_;
 
-	return exists $ObjectIDs{$id};
+	return exists $self->{object_ids}{$id};
 }
 
 
@@ -159,6 +164,191 @@ sub get_chapter {
 	}
 
 	return $self->{object_ids}{$id}->{'chapter'};
+}
+
+
+##
+# Get the reference ID for an object. If one hasn't been defined, undef is
+# returned instead.
+#
+# \param $object	The object to return the ID for.
+# \return		The object's ID, or undef if none has been defined.
+
+sub get_object_id {
+	my ($self, $object) = @_;
+
+	$self->validate_object_type($object, "reference", "index", "chapter", "section", "code", "image", "table", "download");
+
+	my $id = $object->findvalue('./@id');
+
+	if ($id eq "") {
+		$id = undef;
+	}
+
+	return $id;
+}
+
+
+##
+# Find the chapter before a given chapter.
+#
+# \param $chapter	The chapter to look up from.
+# \return		The previous chapter, or undef if none.
+
+sub find_previous_chapter {
+	my ($self, $chapter) = @_;
+
+	$self->validate_object_type($chapter, "chapter");
+
+	my $previous = $chapter->previousNonBlankSibling();
+
+	while (defined $previous && ($previous->nodeName() ne "chapter" || $previous->nodeType() != XML_ELEMENT_NODE)) {
+		$previous = $previous->previousNonBlankSibling();
+	}
+
+	return $previous;
+}
+
+
+##
+# Find the chapter after a given chapter.
+#
+# \param $chapter	The chapter to look up from.
+# \return		The next chapter, or undef if none.
+
+sub find_next_chapter {
+	my ($self, $chapter) = @_;
+
+	$self->validate_object_type($chapter, "chapter");
+
+	my $next = $chapter->nextNonBlankSibling();
+
+	while (defined $next && ($next->nodeName() ne "chapter" || $next->nodeType() != XML_ELEMENT_NODE)) {
+		$next = $next->nextNonBlankSibling();
+	}
+
+	return $next;
+}
+
+
+##
+# Find the filename to use for a chapter or index.
+#
+# \param $chapter	The chapter to return the filename for.
+# \return		The filename of the chapter.
+
+sub get_chapter_filename {
+	my ($self, $chapter) = @_;
+
+	$self->validate_object_type($chapter, "chapter", "index");
+
+	my $filename = $chapter->findvalue('./filename');
+
+	if (!defined $filename || $filename eq "") {
+		die "No filename for chapter.\n";
+	}
+
+	return $filename;
+}
+
+
+##
+# Get the title to use for a chapter.
+#
+# \param $chapter	The chapter to return the title for.
+# \param $number	The sequence number of the chapter in question.
+# \param $full		TRUE to prefix with Chapter <n>:
+# \return		The title to give to the chapter.
+
+sub get_chapter_title {
+	my ($self, $chapter, $number, $full) = @_;
+
+	$self->validate_object_type($chapter, "chapter");
+
+	my $name = $chapter->findvalue('./title');
+
+	if (!defined $name || $name eq "") {
+		$name = "Chapter $number";
+	} elsif ($full == TRUE) {
+		$name = "Chapter $number: $name";
+	}
+
+	return $name;
+}
+
+
+##
+# Return the local resource folder for a chapter or index.
+#
+# \param $chapter	The chapter to return the folder for.
+# \param $resource	The resource folder of interest.
+# \return		The folder name, or '' if unavailable.
+
+sub get_chapter_resource_folder {
+	my ($self, $chapter, $resource) = @_;
+
+	$self->validate_object_type($chapter, "chapter", "index");
+
+	my $folder = '';
+
+	if ($resource eq 'images') {
+		$folder = $self->get_value($chapter, './resources/images', '');
+	} elsif ($resource eq 'downloads') {
+		$folder = $self->get_value($chapter, './resources/downloads', '');
+	}
+
+	return $folder;
+}
+
+
+##
+# Test the type of an object to see if it's one contained in an acceptable
+# list. If the object's type isn't in the list, the subroutine exits via
+# die() and does not return.
+#
+# \param $object	The object to test.
+# \param @types		A list of acceptable types.
+
+sub validate_object_type {
+	my ($self, $object, @types) = @_;
+
+	my $found = FALSE;
+
+	foreach my $type (@types) {
+		if ($type eq $object->nodeName()) {
+			$found = TRUE;
+			last;
+		}
+	}
+
+	if (!$found) {
+		die "ID in invalid object ".$object->nodeName()."\n";
+	}
+}
+
+
+##
+# Return the value of an XML node.
+#
+# \param $object	The XML object to read from.
+# \param $name		The name of the node to be returned.
+# \param $default	A default value to return; omit to use undef.
+# \return		The value read.
+
+sub get_value {
+	my ($self, $object, $name, $default) = @_;
+
+	if ($object->findvalue("count(" . $name . ")") > 1) {
+		die("No unique ", $name, " found.\n");
+	}
+
+	my $value = $object->findvalue($name);
+
+	if (!defined $value) {
+		$value = $default;
+	}
+
+	return $value;
 }
 
 1;

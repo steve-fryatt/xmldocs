@@ -5,20 +5,42 @@ package OutputHtml;
 use strict;
 use warnings;
 
+use XML::LibXML;
+use Image::Magick;
 use HTML::Entities;
+use File::Temp qw/ tempfile tempdir /;
+
+use constant TRUE	=> 1;
+use constant FALSE	=> 0;
 
 ##
 # Construct a new FileHash instance.
 sub new {
-	my ($class) = @_;
+	my $class = shift;
 
 	my $self = {};
 
 	bless($self, $class);
 
-	$self->{ManualTitle} = 'Untitled';
-	$self->{IndexFilename} = undef;
-	$self->{ObjectIDs} = undef;
+	$self->{ManualTitle} = shift;
+	$self->{IndexFilename} = shift;
+	$self->{ObjectIDs} = shift;
+
+	$self->{MaxImageWidth} = shift;
+
+	$self->{OutputFolder} = shift;
+	$self->{OutputImageFolder} = shift;
+	$self->{OutputDownloadFolder} = shift;
+
+	$self->{ImageFolder} = shift;
+	$self->{DownloadFolder} = shift;
+	$self->{CommonDownloadFolder} = shift;
+
+	$self->{ImageList} = shift;
+	$self->{DownloadList} = shift;
+
+	$self->{Time} = shift;
+	$self->{BreadCrumbs} = @_;
 
 	return $self;
 }
@@ -81,7 +103,7 @@ sub write_footer {
 	print $file "<a href=\"http://www.anybrowser.org/campaign/\"><img src=\"../../images/any.gif\" alt=\"Best veiwed with Any Browser!\" width=81 height=31 border=0></a>&nbsp;\n";
 	print $file "<a href=\"http://jigsaw.w3.org/css-validator/check/referer\"><img src=\"../../images/vcss.gif\" alt=\"Valid CSS!\" width=88 height=31 border=0></a></p>\n\n";
 
-	print $file "<p>Page last updated ", get_date(@Time), " | Maintained by Steve Fryatt:\n";
+	print $file "<p>Page last updated ", $self->{Time}, " | Maintained by Steve Fryatt:\n";
 	print $file "<a href=\"mailto:web\@stevefryatt.org.uk\">web\@stevefryatt.org.uk</a></p>\n";
 	print $file "</div>\n\n";
 
@@ -103,7 +125,7 @@ sub write_breadcrumb {
 
 	print $file "<p class=\"breadcrumb\">[ ";
 
-	my @names = @BreadCrumbs;
+	my @names = $self->{BreadCrumbs};
 	if (defined $local) {
 		push(@names, $local);
 	}
@@ -156,7 +178,7 @@ sub generate_chapter_list {
 
 		if (defined $summaries[0]) {
 			print $file "<dd class=\"doc\">";
-			process_text($summaries[0], $file);
+			$self->process_text($summaries[0], $file);
 			print $file "</dd>\n";
 		}
 
@@ -215,7 +237,7 @@ sub process_section {
 	my $title = $section->findvalue('./title');
 
 	if (defined($title) && $title ne "") {
-		my $id = get_object_id($section);
+		my $id = $self->{ObjectIDs}->get_object_id($section);
 
 		print $file "<h2>";
 		if (defined $id) {
@@ -231,16 +253,16 @@ sub process_section {
 	foreach my $block ($section->childNodes()) {
 		if ($block->nodeName() eq "p") {
 			print $file "<p class=\"doc\">";
-			process_text($block, $file);
+			$self->process_text($block, $file);
 			print $file "</p>\n\n";
 		} elsif ($block->nodeName() eq "table") {
-			process_table($block, $file);
+			$self->process_table($block, $file);
 		} elsif ($block->nodeName() eq "code") {
-			process_code($block, $file);
+			$self->process_code($block, $file);
 		} elsif ($block->nodeName() eq "image") {
-			process_image($block, $chapter, $file);
+			$self->process_image($block, $chapter, $file);
 		} elsif ($block->nodeName() eq "download") {
-			process_download($block, $chapter, $file);
+			$self->process_download($block, $chapter, $file);
 		}
 	}
 }
@@ -302,16 +324,16 @@ sub process_text {
 		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
 			if (exists $styles{$chunk->nodeName()}) {
 				print $file "<span class=\"", $styles{$chunk->nodeName()}, "\">";
-				process_text($chunk, $file);
+				$self->process_text($chunk, $file);
 				print $file "</span>";
 			} elsif (exists $tags{$chunk->nodeName()}) {
 				print $file "<", $tags{$chunk->nodeName()}, ">";
-				process_text($chunk, $file);
+				$self->process_text($chunk, $file);
 				print $file "</", $tags{$chunk->nodeName()}, ">";
 			} elsif ($chunk->nodeName() eq "reference") {
-				print $file create_reference($chunk);
+				print $file $self->create_reference($chunk);
 			} elsif ($chunk->nodeName() eq "link") {
-				print $file create_link($chunk);
+				print $file $self->create_link($chunk);
 			} else {
 				print $file encode_entities($chunk->to_literal);
 			}
@@ -339,9 +361,9 @@ sub process_text {
 sub create_reference {
 	my ($self, $reference) = @_;
 
-	validate_object_type($reference, "reference");
+	$self->{ObjectIDs}->validate_object_type($reference, "reference");
 
-	my $id = get_object_id($reference);
+	my $id = $self->{ObjectIDs}->get_object_id($reference);
 
 	if (!defined $id) {
 		die "Missing id.\n";
@@ -357,9 +379,9 @@ sub create_reference {
 	my $chapter = $self->{ObjectIDs}->get_chapter($id);
 
 	if (defined $chapter) {
-		$link = get_chapter_filename($chapter)."#".$id;
+		$link = $self->{ObjectIDs}->get_chapter_filename($chapter)."#".$id;
 	} else {
-		$link = $link = get_chapter_filename($object);
+		$link = $link = $self->{ObjectIDs}->get_chapter_filename($object);
 	}
 
 	my $text = "";
@@ -431,11 +453,11 @@ sub process_table {
 	#				die "Multiple column sets defined\n";
 	#			}
 				print $file "<tr>";
-				@columns = process_table_headings($chunk, $file);
+				@columns = $self->process_table_headings($chunk, $file);
 				print $file "</tr>\n";
 			} elsif ($chunk->nodeName() eq "row") {
 				print $file "<tr>";
-				process_table_row($chunk, $file, @columns);
+				$self->process_table_row($chunk, $file, @columns);
 				print $file "</tr>\n";
 			} else {
 				print $file "(unknown node ", $chunk->nodeName(), ")";
@@ -488,7 +510,7 @@ sub process_table_headings {
 				push(@columns, $align);
 
 				print $file "<th class=\"$align\">";
-				process_text($chunk, $file);
+				$self->process_text($chunk, $file);
 				print $file "</th>";
 				
 			} else {
@@ -527,7 +549,7 @@ sub process_table_row {
 				}
 
 				print $file "<td class=\"".$columns[$column]."\">";
-				process_text($chunk, $file);
+				$self->process_text($chunk, $file);
 				print $file "</td>";
 
 				$column++;
@@ -555,7 +577,7 @@ sub process_code {
 	my $language = $code->findvalue('./@lang');
 
 	my $caption = undef;
-	my $id = get_object_id($code);
+	my $id = $self->{ObjectIDs}->get_object_id($code);
 
 	if (defined $id) {
 		$caption = $code->findvalue('./@name');
@@ -606,7 +628,7 @@ sub process_image {
 	my $imagefile = $image->findvalue('./@file');
 
 	my $caption = undef;
-	my $id = get_object_id($image);
+	my $id = $self->{ObjectIDs}->get_object_id($image);
 
 	if (defined $id) {
 		$caption = $image->findvalue('./@name');
@@ -615,15 +637,15 @@ sub process_image {
 		}
 	}
 
-	my $infile = File::Spec->catfile($ImageFolder, get_chapter_resource_folder($chapter, 'images'), $imagefile);
-	my $outfile = File::Spec->catfile($OutputFolder, $OutputImageFolder, $imagefile);
+	my $infile = File::Spec->catfile($self->{ImageFolder}, $self->{ObjectIDs}->get_chapter_resource_folder($chapter, 'images'), $imagefile);
+	my $outfile = File::Spec->catfile($self->{OutputFolder}, $self->{OutputImageFolder}, $imagefile);
 
 	my $ininfo = stat($infile);
 	my $outinfo = stat($outfile);
 
 	# Check that we haven't already tried to write an image of the same name.
 
-	$ImageList->add_file_record($outfile, "image");
+	$self->{ImageList}->add_file_record($outfile, "image");
 
 	if (!defined $ininfo) {
 		die "Couldn't find imagefile file ", $imagefile, "\n";
@@ -635,7 +657,7 @@ sub process_image {
 		die $x."\n";
 	}
 	
-	$x = $convert->Resize(geometry => $MaxImageWidth.'x>');
+	$x = $convert->Resize(geometry => $self->{MaxImageWidth}.'x>');
 	if ($x) {
 		die $x."\n";
 	}
@@ -656,7 +678,7 @@ sub process_image {
 	if (defined $id) {
 		print $file "<a name=\"", $id, "\">";
 	}
-	print $file "<p><img src=\"", File::Spec::Unix->catfile($OutputImageFolder, $imagefile), "\" width=", $width," height=", $height,"></p>";
+	print $file "<p><img src=\"", File::Spec::Unix->catfile($self->{OutputImageFolder}, $imagefile), "\" width=", $width," height=", $height,"></p>";
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
 	};
@@ -689,16 +711,16 @@ sub process_download {
 		$caption = "Download";
 	}
 
-	my $chapterfolder = File::Spec->catfile($DownloadFolder, get_chapter_resource_folder($chapter, 'downloads'), $downloadfile);
+	my $chapterfolder = File::Spec->catfile($self->{DownloadFolder}, get_chapter_resource_folder($chapter, 'downloads'), $downloadfile);
 
 	if (!-d $chapterfolder) {
 		die "Couldn't find chapter download folder ", $downloadfile, "\n";
 	}
 
-	my $commonfolder = File::Spec->catfile($DownloadFolder, $CommonDownloadFolder);
+	my $commonfolder = File::Spec->catfile($self->{DownloadFolder}, $self->{CommonDownloadFolder});
 
 	if (!-d $commonfolder) {
-		die "Couldn't find common download folder ", $CommonDownloadFolder, "\n";
+		die "Couldn't find common download folder ", $self->{CommonDownloadFolder}, "\n";
 	}
 
 	if (defined $download->findvalue('./@title') && $download->findvalue('./@title') ne "") {
@@ -707,12 +729,12 @@ sub process_download {
 		$title = $downloadfile;
 	}
 
-	my $destinationfile = (File::Spec->catfile($OutputFolder, $OutputDownloadFolder, $downloadfile));
+	my $destinationfile = (File::Spec->catfile($self->{OutputFolder}, $self->{OutputDownloadFolder}, $downloadfile));
 	$destinationfile .= ".zip";
 
 	# Check that we haven't already tried to write a download of the same name.
 
-	$DownloadList->add_file_record($destinationfile, "download");
+	$self->{DownloadList}->add_file_record($destinationfile, "download");
 
 	BuildZip::build_zip_file($destinationfile, $chapterfolder, $commonfolder);
 
@@ -742,12 +764,12 @@ sub process_download {
 
 	print $file "<p class=\"download\">";
 	
-	write_icon_image($file, 'zip');
+	$self->write_icon_image($file, 'zip');
 	if ($iyonix_ok) {
-		write_icon_image($file, 'armv7', 'iyonix');
+		$self->write_icon_image($file, 'armv7', 'iyonix');
 	}
 	if ($armv7_ok) {
-		write_icon_image($file, 'iyonix', 'iyonix');
+		$self->write_icon_image($file, 'iyonix', 'iyonix');
 	}
 	if (defined $id) {
 		print $file "<a name=\"", $id, "\">";
@@ -756,7 +778,7 @@ sub process_download {
 	if (defined $id) {
 		print $file "</a>";
 	}
-	print $file " <a href=\"", File::Spec::Unix->catfile($OutputDownloadFolder, $downloadfile),".zip\">", $title,"</a><br>\n";
+	print $file " <a href=\"", File::Spec::Unix->catfile($self->{OutputDownloadFolder}, $downloadfile),".zip\">", $title,"</a><br>\n";
 	print $file get_filesize($filesize), " | ", get_date(localtime($filedate)), $compatibility, "</p>\n\n";
 }
 
@@ -771,9 +793,9 @@ sub process_download {
 sub write_icon_image {
 	my ($self, $file, $icon, $class) = @_;
 
-	my ($file, $width, $height, $alt) = $self->{IconDetails}->get_icon_details($icon);
+	my ($filename, $width, $height, $alt) = $self->{IconDetails}->get_icon_details($icon);
 
-	print $file "<img src=\"", $file, "\" alt=\"", $alt, "\" width=", $width, " height=", $height;
+	print $file "<img src=\"", $filename, "\" alt=\"", $alt, "\" width=", $width, " height=", $height;
 
 	if (defined $class) {
 		print $file " class=\"", $class, "\"";

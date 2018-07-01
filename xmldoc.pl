@@ -10,20 +10,16 @@ use File::Copy;
 use File::Path qw/ make_path remove_tree /;
 use File::Spec;
 use File::stat;
-use File::Temp qw/ tempfile tempdir /;
 
 use BuildZip;
 use FileHash;
 use IconDetails;
+use ObjectIDs;
 
 use OutputHtml;
 
 use constant TRUE	=> 1;
 use constant FALSE	=> 0;
-
-# Construct the output engine.
-
-my $OutputEngine = OutputHtml->new();
 
 # Set up some constant values.
 
@@ -40,6 +36,10 @@ $parser->expand_entities(0);
 $parser->set_option('huge', 1);
 my $manual = $parser->parse_file($filename);
 
+my $ObjectIDs = ObjectIDs->new();
+
+# Get the local time.
+
 my @Time = localtime();
 
 # Track HTML files, images and files.
@@ -54,22 +54,26 @@ my $IconDetails = IconDetails->new($manual);
 
 # Identify the manual's title.
 
-$OutputEngine->ManualTitle = get_value($manual, '/manual/title', 'Undefined');
+my $ManualTitle = $ObjectIDs->get_value($manual, '/manual/title', 'Undefined');
 
 # Find the base resource folders.
 
-my $ImageFolder = get_value($manual, '/manual/resources/images', '');
-my $DownloadFolder = get_value($manual, '/manual/resources/downloads', '');
-my $CommonDownloadFolder = get_value($manual, '/manual/resources/common', '');
-my $ChapterFolder = get_value($manual, '/manual/resources/chapters', '');
+my $ImageFolder = $ObjectIDs->get_value($manual, '/manual/resources/images', '');
+my $DownloadFolder = $ObjectIDs->get_value($manual, '/manual/resources/downloads', '');
+my $CommonDownloadFolder = $ObjectIDs->get_value($manual, '/manual/resources/common', '');
+my $ChapterFolder = $ObjectIDs->get_value($manual, '/manual/resources/chapters', '');
 
 # Find the index filename
 
-$OutputEngine->IndexFilename = get_value($manual, '/manual/index/filename', 'index.html');
+my $IndexFilename = $ObjectIDs->get_value($manual, '/manual/index/filename', 'index.html');
 
 # Pull in any chapter file.
 
 assemble_chapters($manual);
+
+# Link the document, recording all the id attributes.
+
+$ObjectIDs->link_document($manual);
 
 # Identify the breadcrumb trail that we're going to use.
 
@@ -81,13 +85,10 @@ foreach my $breadcrumb ($manual->findnodes('/manual/breadcrumb/dir')) {
 
 push(@BreadCrumbs, $ManualTitle);
 
-# Link the document, recording all the id attributes.
+# Construct the output engine.
 
-my $ObjectIDs = $ObjectIDs->new();
-
-$ObjectIDs->link_document($manual);
-
-$OutputEngine->ObjectIDs = $ObjectIDs;
+my $OutputEngine = OutputHtml->new($ManualTitle, $IndexFilename, $ObjectIDs, $MaxImageWidth, $OutputFolder, $OutputImageFolder, $OutputDownloadFolder,
+		$ImageFolder, $DownloadFolder, $CommonDownloadFolder, $ImageList, $DownloadList, get_date(@Time), @BreadCrumbs);
 
 # Process the chapters, outputting a file for each.
 
@@ -107,30 +108,6 @@ foreach my $index ($manual->findnodes('/manual/index')) {
 $HtmlList->remove_obsolete_files($OutputFolder);
 $ImageList->remove_obsolete_files(File::Spec->catfile($OutputFolder, $OutputImageFolder));
 $DownloadList->remove_obsolete_files(File::Spec->catfile($OutputFolder, $OutputDownloadFolder));
-
-##
-# Return the value of an XML node.
-#
-# \param $object	The XML object to read from.
-# \param $name		The name of the node to be returned.
-# \param $default	A default value to return; omit to use undef.
-# \return		The value read.
-
-sub get_value {
-	my ($object, $name, $default) = @_;
-
-	if ($object->findvalue("count(" . $name . ")") > 1) {
-		die("No unique ", $name, " found.\n");
-	}
-
-	my $value = $object->findvalue($name);
-
-	if (!defined $value) {
-		$value = $default;
-	}
-
-	return $value;
-}
 
 
 ##
@@ -227,7 +204,7 @@ sub get_filesize {
 sub process_index {
 	my ($index, $manual) = @_;
 
-	my $filename = File::Spec->catfile($OutputFolder, get_chapter_filename($index));
+	my $filename = File::Spec->catfile($OutputFolder, $ObjectIDs->get_chapter_filename($index));
 
 	# Check that we haven't already tried to write a chapter of the same name.
 
@@ -265,7 +242,7 @@ sub process_chapter {
 
 	# Get the relative file name for the chapter.
 
-	my $filename = File::Spec->catfile($OutputFolder, get_chapter_filename($chapter));
+	my $filename = File::Spec->catfile($OutputFolder, $ObjectIDs->get_chapter_filename($chapter));
 
 	# Check that we haven't already tried to write a chapter of the same name.
 
@@ -277,182 +254,22 @@ sub process_chapter {
 
 	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
 
-	my $full_title = get_chapter_title($chapter, $number, TRUE);
-	my $short_title = get_chapter_title($chapter, $number, FALSE);
+	my $full_title = $ObjectIDs->get_chapter_title($chapter, $number, TRUE);
+	my $short_title = $ObjectIDs->get_chapter_title($chapter, $number, FALSE);
 
 	$OutputEngine->write_header($file, $full_title);
 
 	foreach my $section ($chapter->findnodes('./section')) {
-		process_section($section, $chapter, $file);
+		$OutputEngine->process_section($section, $chapter, $file);
 	}
 
-	my $previous = find_previous_chapter($chapter);
-	my $next = find_next_chapter($chapter);
+	my $previous = $ObjectIDs->find_previous_chapter($chapter);
+	my $next = $ObjectIDs->find_next_chapter($chapter);
 
-	$outputEngine->generate_previous_next_links($previous, $next, $number, $file);
+	$OutputEngine->generate_previous_next_links($previous, $next, $number, $file);
 
 	$OutputEngine->write_footer($file);
 
 	close($file);
-}
-
-
-##
-# Find the chapter before a given chapter.
-#
-# \param $chapter	The chapter to look up from.
-# \return		The previous chapter, or undef if none.
-
-sub find_previous_chapter {
-	my ($chapter) = @_;
-
-	validate_object_type($chapter, "chapter");
-
-	my $previous = $chapter->previousNonBlankSibling();
-
-	while (defined $previous && ($previous->nodeName() ne "chapter" || $previous->nodeType() != XML_ELEMENT_NODE)) {
-		$previous = $previous->previousNonBlankSibling();
-	}
-
-	return $previous;
-}
-
-
-##
-# Find the chapter after a given chapter.
-#
-# \param $chapter	The chapter to look up from.
-# \return		The next chapter, or undef if none.
-
-sub find_next_chapter {
-	my ($chapter) = @_;
-
-	validate_object_type($chapter, "chapter");
-
-	my $next = $chapter->nextNonBlankSibling();
-
-	while (defined $next && ($next->nodeName() ne "chapter" || $next->nodeType() != XML_ELEMENT_NODE)) {
-		$next = $next->nextNonBlankSibling();
-	}
-
-	return $next;
-}
-
-
-##
-# Find the filename to use for a chapter or index.
-#
-# \param $chapter	The chapter to return the filename for.
-# \return		The filename of the chapter.
-
-sub get_chapter_filename {
-	my ($chapter) = @_;
-
-	validate_object_type($chapter, "chapter", "index");
-
-	my $filename = $chapter->findvalue('./filename');
-
-	if (!defined $filename || $filename eq "") {
-		die "No filename for chapter.\n";
-	}
-
-	return $filename;
-}
-
-
-##
-# Get the title to use for a chapter.
-#
-# \param $chapter	The chapter to return the title for.
-# \param $number	The sequence number of the chapter in question.
-# \param $full		TRUE to prefix with Chapter <n>:
-# \return		The title to give to the chapter.
-
-sub get_chapter_title {
-	my ($chapter, $number, $full) = @_;
-
-	validate_object_type($chapter, "chapter");
-
-	my $name = $chapter->findvalue('./title');
-
-	if (!defined $name || $name eq "") {
-		$name = "Chapter $number";
-	} elsif ($full == TRUE) {
-		$name = "Chapter $number: $name";
-	}
-
-	return $name;
-}
-
-
-##
-# Return the local resource folder for a chapter or index.
-#
-# \param $chapter	The chapter to return the folder for.
-# \param $resource	The resource folder of interest.
-# \return		The folder name, or '' if unavailable.
-
-sub get_chapter_resource_folder {
-	my ($chapter, $resource) = @_;
-
-	validate_object_type($chapter, "chapter", "index");
-
-	my $folder = '';
-
-	if ($resource eq 'images') {
-		$folder = get_value($chapter, './resources/images', '');
-	} elsif ($resource eq 'downloads') {
-		$folder = get_value($chapter, './resources/downloads', '');
-	}
-
-	return $folder;
-}
-
-
-##
-# Get the reference ID for an object. If one hasn't been defined, undef is
-# returned instead.
-#
-# \param $object	The object to return the ID for.
-# \return		The object's ID, or undef if none has been defined.
-
-sub get_object_id {
-	my ($object) = @_;
-
-	validate_object_type($object, "reference", "index", "chapter", "section", "code", "image", "table", "download");
-
-	my $id = $object->findvalue('./@id');
-
-	if ($id eq "") {
-		$id = undef;
-	}
-
-	return $id;
-}
-
-
-##
-# Test the type of an object to see if it's one contained in an acceptable
-# list. If the object's type isn't in the list, the subroutine exits via
-# die() and does not return.
-#
-# \param $object	The object to test.
-# \param @types		A list of acceptable types.
-
-sub validate_object_type {
-	my ($object, @types) = @_;
-
-	my $found = FALSE;
-
-	foreach my $type (@types) {
-		if ($type eq $object->nodeName()) {
-			$found = TRUE;
-			last;
-		}
-	}
-
-	if (!$found) {
-		die "ID in invalid object ".$object->nodeName()."\n";
-	}
 }
 
