@@ -62,7 +62,7 @@ sub get_icon_details {
 		die "Icon details not found for ", $name, ".\n";
 	}
 
-	return ($self->{icons}{'file'}, $self->{icons}{'width'}, $self->{icons}{'height'}, $self->{icons}{'alt'});
+	return ($self->{icons}{$name}{'file'}, $self->{icons}{$name}{'width'}, $self->{icons}{$name}{'height'}, $self->{icons}{$name}{'alt'});
 }
 
 1;

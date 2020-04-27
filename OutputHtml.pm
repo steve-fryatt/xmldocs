@@ -9,6 +9,9 @@ use XML::LibXML;
 use Image::Magick;
 use HTML::Entities;
 use File::Temp qw/ tempfile tempdir /;
+use File::stat;
+
+use Formatting;
 
 use constant TRUE	=> 1;
 use constant FALSE	=> 0;
@@ -25,6 +28,7 @@ sub new {
 	$self->{ManualTitle} = shift;
 	$self->{IndexFilename} = shift;
 	$self->{ObjectIDs} = shift;
+	$self->{IconDetails} = shift;
 
 	$self->{MaxImageWidth} = shift;
 
@@ -40,7 +44,7 @@ sub new {
 	$self->{DownloadList} = shift;
 
 	$self->{Time} = shift;
-	$self->{BreadCrumbs} = @_;
+	$self->{BreadCrumbs} = \@_;
 
 	return $self;
 }
@@ -54,7 +58,7 @@ sub new {
 #			used.
 
 sub write_header {
-	my ($self, $file, $chapter) = @_;
+	my ($self, $file, $chapter, $breadcrumb) = @_;
 
 	print $file "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\" \"http://www.w3.org/TR/REC-html40/loose.dtd\">\n\n";
 
@@ -81,7 +85,7 @@ sub write_header {
 	print $file "<div id=\"content\">\n";
 
 
-	$self->write_breadcrumb($file);
+	$self->write_breadcrumb($file, $breadcrumb);
 }
 
 
@@ -91,9 +95,9 @@ sub write_header {
 # \param $file		The file to write the footer to.
 
 sub write_footer {
-	my ($self, $file) = @_;
+	my ($self, $file, $breadcrumb) = @_;
 
-	$self->write_breadcrumb($file);
+	$self->write_breadcrumb($file, $breadcrumb);
 
 	print $file "</div>\n\n";
 
@@ -125,7 +129,7 @@ sub write_breadcrumb {
 
 	print $file "<p class=\"breadcrumb\">[ ";
 
-	my @names = $self->{BreadCrumbs};
+	my @names = @{$self->{BreadCrumbs}};
 	if (defined $local) {
 		push(@names, $local);
 	}
@@ -170,9 +174,9 @@ sub generate_chapter_list {
 
 	foreach my $chapter ($manual->findnodes('/manual/chapter')) {
 		print $file "\n<dt><a href=\"",
-				get_chapter_filename($chapter),
+				$self->{ObjectIDs}->get_chapter_filename($chapter),
 				"\">",
-				get_chapter_title($chapter, $number, TRUE),
+				$self->{ObjectIDs}->get_chapter_title($chapter, $number, TRUE),
 				"</a></dt>\n";
 		my @summaries = $chapter->findnodes('./summary');
 
@@ -204,9 +208,9 @@ sub generate_previous_next_links {
 		print $file "<p class=\"navigate\">";
 		if (defined $previous) {
 			print $file "Previous: <a href=\"",
-					get_chapter_filename($previous),
+					$self->{ObjectIDs}->get_chapter_filename($previous),
 					"\">",
-					get_chapter_title($previous, $number - 1, FALSE),
+					$self->{ObjectIDs}->get_chapter_title($previous, $number - 1, FALSE),
 					"</a>";
 		}
 		if (defined $previous && defined $next) {
@@ -214,9 +218,9 @@ sub generate_previous_next_links {
 		}
 		if (defined $next) {
 			print $file "Next: <a href=\"",
-					get_chapter_filename($next),
+					$self->{ObjectIDs}->get_chapter_filename($next),
 					"\">",
-					get_chapter_title($next, $number + 1, FALSE),
+					$self->{ObjectIDs}->get_chapter_title($next, $number + 1, FALSE),
 					"</a>";
 		}
 		print $file "</p>\n\n";
@@ -407,7 +411,7 @@ sub create_reference {
 sub create_link {
 	my ($self, $link) = @_;
 
-	validate_object_type($link, "link");
+	$self->{ObjectIDs}->validate_object_type($link, "link");
 
 	if (!defined $link->findvalue('./@href') || $link->findvalue('./@href') eq "") {
 		die "Missing external link.\n";
@@ -427,7 +431,7 @@ sub process_table {
 	my ($self, $table, $file) = @_;
 
 	my $caption = undef;
-	my $id = get_object_id($table);
+	my $id = $self->{ObjectIDs}->get_object_id($table);
 
 	if (defined $id) {
 		$caption = $table->findvalue('./@name');
@@ -703,7 +707,7 @@ sub process_download {
 
 	my $caption = undef;
 	my $title = undef;
-	my $id = get_object_id($download);
+	my $id = $self->{ObjectIDs}->get_object_id($download);
 
 	if (defined $id) {
 		$caption = $download->findvalue('./@name');
@@ -711,7 +715,7 @@ sub process_download {
 		$caption = "Download";
 	}
 
-	my $chapterfolder = File::Spec->catfile($self->{DownloadFolder}, get_chapter_resource_folder($chapter, 'downloads'), $downloadfile);
+	my $chapterfolder = File::Spec->catfile($self->{DownloadFolder}, $self->{ObjectIDs}->get_chapter_resource_folder($chapter, 'downloads'), $downloadfile);
 
 	if (!-d $chapterfolder) {
 		die "Couldn't find chapter download folder ", $downloadfile, "\n";
@@ -779,7 +783,7 @@ sub process_download {
 		print $file "</a>";
 	}
 	print $file " <a href=\"", File::Spec::Unix->catfile($self->{OutputDownloadFolder}, $downloadfile),".zip\">", $title,"</a><br>\n";
-	print $file get_filesize($filesize), " | ", get_date(localtime($filedate)), $compatibility, "</p>\n\n";
+	print $file Formatting::get_filesize($filesize), " | ", Formatting::get_date(localtime($filedate)), $compatibility, "</p>\n\n";
 }
 
 

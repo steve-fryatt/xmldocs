@@ -9,12 +9,13 @@ use File::Find::Rule;
 use File::Copy;
 use File::Path qw/ make_path remove_tree /;
 use File::Spec;
-use File::stat;
 
 use BuildZip;
 use FileHash;
 use IconDetails;
 use ObjectIDs;
+
+use Formatting;
 
 use OutputHtml;
 
@@ -25,7 +26,7 @@ use constant FALSE	=> 0;
 
 my $filename = "wimp.xml";
 
-my $OutputFolder = "dumpout/";
+my $OutputFolder = "output/";
 my $OutputImageFolder = "images/";
 my $OutputDownloadFolder = "files/";
 
@@ -87,8 +88,8 @@ push(@BreadCrumbs, $ManualTitle);
 
 # Construct the output engine.
 
-my $OutputEngine = OutputHtml->new($ManualTitle, $IndexFilename, $ObjectIDs, $MaxImageWidth, $OutputFolder, $OutputImageFolder, $OutputDownloadFolder,
-		$ImageFolder, $DownloadFolder, $CommonDownloadFolder, $ImageList, $DownloadList, get_date(@Time), @BreadCrumbs);
+my $OutputEngine = OutputHtml->new($ManualTitle, $IndexFilename, $ObjectIDs, $IconDetails, $MaxImageWidth, $OutputFolder, $OutputImageFolder, $OutputDownloadFolder,
+		$ImageFolder, $DownloadFolder, $CommonDownloadFolder, $ImageList, $DownloadList, Formatting::get_date(@Time), @BreadCrumbs);
 
 # Process the chapters, outputting a file for each.
 
@@ -145,56 +146,6 @@ sub assemble_chapters {
 
 
 ##
-# Get the date in a suitable format for a page footer.
-#
-# \param @time		The time to convert.
-# \return		The current date.
-
-sub get_date {
-	my (@time) = @_;
-
-	my %suffixes = (
-		1 => 'st',
-		2 => 'nd',
-		3 => 'rd',
-		21 => 'st',
-		22 => 'nd',
-		23 => 'rd',
-		31 => 'st'
-	);
-
-	my $suffix = 'th';
-	my $day  = $time[3];
-	if (exists $suffixes{$day}) {
-		$suffix = $suffixes{$day};
-	}
-	
-	return $day . $suffix . POSIX::strftime(" %B, %Y", @time);
-}
-
-
-##
-# Get a filetype into a human-readable format.
-#
-# \param $size		The size to format, in bytes.
-# \return		The size in human-readable format.
-
-sub get_filesize {
-	my ($size) = @_;
-
-	if ($size < 1024) {
-		return sprintf("%d Bytes", $size);
-	} elsif ($size < 1048576) {
-		return sprintf("%d KBytes", ($size / 1024) + 0.5);
-	} else {
-		return sprintf("%d Mbytes", (($size / 104857.6) + 0.5) / 10);
-	}
-
-	return "";
-}
-
-
-##
 # Process an index object to create the introduction page and a contents
 # list for the other pages.
 #
@@ -218,9 +169,9 @@ sub process_index {
 
 	foreach my $section ($index->findnodes('./section|./chapterlist')) {
 		if ($section->nodeName() eq "section") {
-			process_section($section, $index, $file);
+			$OutputEngine->process_section($section, $index, $file);
 		} elsif ($section->nodeName() eq "chapterlist") {
-			generate_chapter_list($manual, $file);
+			$OutputEngine->generate_chapter_list($manual, $file);
 		}
 	}
 
@@ -257,7 +208,7 @@ sub process_chapter {
 	my $full_title = $ObjectIDs->get_chapter_title($chapter, $number, TRUE);
 	my $short_title = $ObjectIDs->get_chapter_title($chapter, $number, FALSE);
 
-	$OutputEngine->write_header($file, $full_title);
+	$OutputEngine->write_header($file, $full_title, $short_title);
 
 	foreach my $section ($chapter->findnodes('./section')) {
 		$OutputEngine->process_section($section, $chapter, $file);
@@ -268,7 +219,7 @@ sub process_chapter {
 
 	$OutputEngine->generate_previous_next_links($previous, $next, $number, $file);
 
-	$OutputEngine->write_footer($file);
+	$OutputEngine->write_footer($file, $short_title);
 
 	close($file);
 }
