@@ -284,7 +284,8 @@ sub process_text {
 	my %tags = (
 		'cite' => 'cite',
 		'code' => 'code',
-		'em' => 'em'
+		'em' => 'em',
+		'strong' => 'strong'
 	);
 
 	my %styles = (
