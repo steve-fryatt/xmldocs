@@ -1,5 +1,14 @@
 #!/usr/bin/perl -w
 
+# Requires packages:
+#
+# libfile-file-rule-perl
+# libimage-magick-perl
+# libxml-libxml-perl
+# source-highlight
+#
+# Copy *.lang to /usr/share/source-highlight
+
 use strict;
 use warnings;
 
