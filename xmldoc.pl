@@ -2,7 +2,7 @@
 
 # Requires packages:
 #
-# libfile-file-rule-perl
+# libfile-find-rule-perl
 # libimage-magick-perl
 # libxml-libxml-perl
 # source-highlight
@@ -11,6 +11,9 @@
 
 use strict;
 use warnings;
+
+use FindBin 1.51 qw( $RealBin );
+use lib $RealBin;
 
 use XML::LibXML;
 use Image::Magick;
