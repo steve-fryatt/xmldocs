@@ -71,7 +71,7 @@ sub write_header {
 		print $file "<title>", $self->{ManualTitle}, "</title>\n</head>\n";
 	}
 
-	print $file "</body>\n";
+	print $file "<body>\n";
 	print $file "<div id=\"container\">\n";
 
 	if (!defined $chapter || $chapter eq "") {
