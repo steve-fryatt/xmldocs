@@ -259,6 +259,8 @@ sub process_section {
 			print $file "<p class=\"doc\">";
 			$self->process_text($block, $file);
 			print $file "</p>\n\n";
+		} elsif ($block->nodeName() eq "list") {
+			$self->process_list($block, $file);
 		} elsif ($block->nodeName() eq "table") {
 			$self->process_table($block, $file);
 		} elsif ($block->nodeName() eq "code") {
@@ -422,6 +424,65 @@ sub create_link {
 	}
 
 	return "<a href=\"".$link->findvalue('./@href')."\" class=\"external\">".$link->to_literal."</a>";
+}
+
+
+##
+# Process a list object and write it to the output.
+#
+# \param $list		The list object to be processed.
+# \param $file		The file to write output to.
+
+sub process_list {
+	my ($self, $list, $file) = @_;
+
+	my $type = $list->findvalue('./@type');
+
+	if (defined $type && $type ne "") {
+		if ($type eq "ol") {
+			$type = "ordered";
+		} elsif ($type eq "ul") {
+			$type = "unordered";
+		} else {
+			die "Unknown list type ", $type, ".\n";
+		}
+	} else {
+		$type = "unordered";
+	}
+
+	if ($type eq "ordered") {
+		print $file "<ol class=\"doc\">\n";
+	} elsif ($type eq "unordered") {
+		print $file "<ul class=\"doc\">\n";
+	} else {
+		die "Unknown list type ", $type, ".\n";
+	}
+
+	foreach my $chunk ($list->childNodes()) {
+		if ($chunk->nodeType() == XML_TEXT_NODE) {
+			# print $file $chunk->to_literal;
+		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
+			if ($chunk->nodeName() eq "li") {
+				print $file "<li>";
+				$self->process_text($chunk, $file);
+				print $file "</li>";
+			} else {
+				print $file "(unknown node ", $chunk->nodeName(), ")";
+			}
+		} elsif ($chunk->nodeType() == XML_COMMENT_NODE) {
+			# Ignore comments.
+		} else {
+			print $file "(unknown chunk ", $chunk->nodeType(), ")";
+		}
+	}
+
+	if ($type eq "ordered") {
+		print $file "</ol>\n\n";
+	} elsif ($type eq "unordered") {
+		print $file "</ul>\n\n";
+	} else {
+		die "Unknown list type ", $type, ".\n";
+	}
 }
 
 
