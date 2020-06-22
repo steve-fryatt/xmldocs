@@ -451,9 +451,9 @@ sub process_list {
 	}
 
 	if ($type eq "ordered") {
-		print $file "<ol class=\"doc\">\n";
+		print $file "<ol class=\"doc\">";
 	} elsif ($type eq "unordered") {
-		print $file "<ul class=\"doc\">\n";
+		print $file "<ul class=\"doc\">";
 	} else {
 		die "Unknown list type ", $type, ".\n";
 	}
@@ -463,9 +463,9 @@ sub process_list {
 			# print $file $chunk->to_literal;
 		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
 			if ($chunk->nodeName() eq "li") {
-				print $file "<li>";
+				print $file "\n<li class=\"doc\">";
 				$self->process_text($chunk, $file);
-				print $file "</li>";
+				print $file "</li>\n";
 			} else {
 				print $file "(unknown node ", $chunk->nodeName(), ")";
 			}
