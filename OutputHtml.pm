@@ -43,6 +43,10 @@ sub new {
 	$self->{ImageList} = shift;
 	$self->{DownloadList} = shift;
 
+	$self->{LinkPrefix} = shift;
+	$self->{ImagePrefix} = shift;
+	$self->{DownloadPrefix} = shift;
+
 	$self->{Time} = shift;
 	$self->{BreadCrumbs} = \@_;
 
@@ -60,32 +64,31 @@ sub new {
 sub write_header {
 	my ($self, $file, $chapter, $breadcrumb) = @_;
 
-	print $file "<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0 Transitional//EN\" \"http://www.w3.org/TR/REC-html40/loose.dtd\">\n\n";
+	print $file "<!DOCTYPE HTML>\n\n";
 
-	print $file "<html>\n<head>\n";
-	print $file "<meta http-equiv=\"Content-Type\" content=\"text/html; charset=iso-8859-1\">\n";
-	print $file "<link rel=\"stylesheet\" type=\"text/css\" href=\"../../style/base.css\">\n";
+	print $file "<html>\n";
+	print $file "<head>\n";
+	print $file "<?php echo \$Templates->Head(array(\"RISC&nbsp;OS\", \"", $self->{ManualTitle},"\"";
+
 	if (defined $chapter && $chapter ne "") {
-		print $file "<title>", $self->{ManualTitle}, " &ndash; ", $chapter, "</title>\n</head>\n";
-	} else {
-		print $file "<title>", $self->{ManualTitle}, "</title>\n</head>\n";
+		print $file " ,\"", $chapter, "\"";
 	}
 
+	print $file "), array(\"style/docs.css\")); ?>\n";
+	print $file "</head>\n\n";
+
 	print $file "<body>\n";
-	print $file "<div id=\"container\">\n";
+	print $file "<?php echo \$Templates->PageTop(array(";
+
+	$self->write_breadcrumb($file, $breadcrumb);
+
+	print $file ")); ?>\n\n";
 
 	if (!defined $chapter || $chapter eq "") {
 		$chapter = $self->{ManualTitle};
 	}
 
-	print $file "<div id=\"header\">\n";
 	print $file "<h1>", $chapter, "</h1>\n";
-	print $file "</div>\n\n";
-
-	print $file "<div id=\"content\">\n";
-
-
-	$self->write_breadcrumb($file, $breadcrumb);
 }
 
 
@@ -97,21 +100,13 @@ sub write_header {
 sub write_footer {
 	my ($self, $file, $breadcrumb) = @_;
 
-	$self->write_breadcrumb($file, $breadcrumb);
+	print $file "<?php\n";
+	print $file "	echo \$Templates->SideBar();\n";
+	print $file "	echo \$Templates->PageEnd(\"", $self->{Time}, "\");\n";
+	print $file "?>\n\n";
 
-	print $file "</div>\n\n";
-
-	print $file "<div id=\"footer\">\n";
-	print $file "<p><a href=\"http://validator.w3.org/check?uri=referer\"><img src=\"../../images/vh40.gif\" alt=\"Valid HTML 4.0!\" width=88 height=31 border=0></a>&nbsp;\n";
-	print $file "<a href=\"http://www.riscos.com/\"><img src=\"../../images/roro4x.gif\" alt=\"RISC OS\" width=88 height=31 border=0></a>&nbsp;\n";
-	print $file "<a href=\"http://www.anybrowser.org/campaign/\"><img src=\"../../images/any.gif\" alt=\"Best veiwed with Any Browser!\" width=81 height=31 border=0></a>&nbsp;\n";
-	print $file "<a href=\"http://jigsaw.w3.org/css-validator/check/referer\"><img src=\"../../images/vcss.gif\" alt=\"Valid CSS!\" width=88 height=31 border=0></a></p>\n\n";
-
-	print $file "<p>Page last updated ", $self->{Time}, " | Maintained by Steve Fryatt:\n";
-	print $file "<a href=\"mailto:web\@stevefryatt.org.uk\">web\@stevefryatt.org.uk</a></p>\n";
-	print $file "</div>\n\n";
-
-	print $file "</div>\n</body>\n</html>\n";
+	print $file "</body>\n";
+	print $file "</html>\n";
 }
 
 
@@ -127,8 +122,6 @@ sub write_footer {
 sub write_breadcrumb {
 	my ($self, $file, $local) = @_;
 
-	print $file "<p class=\"breadcrumb\">[ ";
-
 	my @names = @{$self->{BreadCrumbs}};
 	if (defined $local) {
 		push(@names, $local);
@@ -139,23 +132,25 @@ sub write_breadcrumb {
 
 	foreach my $item (@names) {
 		if ($count < $entries) {
-			print $file "| ";
+			print $file ", ";
 		}
 
 		$count--;
 
+		print $file "\"";
+		
 		if ($count > 1 && defined $local) {
-			print $file "<a href=\"", "../" x ($count - 1), "\" class=\"breadcrumb\">", $item, "</a>\n";
+			print $file "../" x ($count - 1);
 		} elsif ($count > 0 && defined $local) {
-			print $file "<a href=\"", $self->{IndexFilename}, "\" class=\"breadcrumb\">", $item, "</a>\n";
+			print $file "./";
+		} elsif ($count > 1) {
+			print $file "../" x ($count - 1);
 		} elsif ($count > 0) {
-			print $file "<a href=\"", "../" x $count, "\" class=\"breadcrumb\">", $item, "</a>\n";
-		} else {
-			print $file "<span class=\"breadcrumb-here\">", $item, "</span>\n";
+			print $file "./";
 		}
-	}
-	
-	print $file " ]</p>\n";
+
+		print $file "\" => \"", $item,"\"";
+ 	}
 }
 
 
@@ -173,8 +168,8 @@ sub generate_chapter_list {
 	print $file "<dl>";
 
 	foreach my $chapter ($manual->findnodes('/manual/chapter')) {
-		print $file "\n<dt><a href=\"",
-				$self->{ObjectIDs}->get_chapter_filename($chapter),
+		print $file "\n<dt><a href=\"", $self->{LinkPrefix},
+				$self->{ObjectIDs}->get_chapter_uri($chapter),
 				"\">",
 				$self->{ObjectIDs}->get_chapter_title($chapter, $number, TRUE),
 				"</a></dt>\n";
@@ -208,7 +203,7 @@ sub generate_previous_next_links {
 		print $file "<p class=\"navigate\">";
 		if (defined $previous) {
 			print $file "Previous: <a href=\"",
-					$self->{ObjectIDs}->get_chapter_filename($previous),
+					$self->{ObjectIDs}->get_chapter_uri($previous),
 					"\">",
 					$self->{ObjectIDs}->get_chapter_title($previous, $number - 1, FALSE),
 					"</a>";
@@ -218,7 +213,7 @@ sub generate_previous_next_links {
 		}
 		if (defined $next) {
 			print $file "Next: <a href=\"",
-					$self->{ObjectIDs}->get_chapter_filename($next),
+					$self->{ObjectIDs}->get_chapter_uri($next),
 					"\">",
 					$self->{ObjectIDs}->get_chapter_title($next, $number + 1, FALSE),
 					"</a>";
@@ -389,9 +384,9 @@ sub create_reference {
 	my $chapter = $self->{ObjectIDs}->get_chapter($id);
 
 	if (defined $chapter) {
-		$link = $self->{ObjectIDs}->get_chapter_filename($chapter)."#".$id;
+		$link = $self->{ObjectIDs}->get_chapter_uri($chapter)."#".$id;
 	} else {
-		$link = $link = $self->{ObjectIDs}->get_chapter_filename($object);
+		$link = $link = $self->{ObjectIDs}->get_chapter_uri($object);
 	}
 
 	my $text = "";
@@ -747,7 +742,7 @@ sub process_image {
 	if (defined $id) {
 		print $file "<a name=\"", $id, "\">";
 	}
-	print $file "<p><img src=\"", File::Spec::Unix->catfile($self->{OutputImageFolder}, $imagefile), "\" width=", $width," height=", $height,"></p>";
+	print $file "<p><img src=\"", File::Spec::Unix->catfile($self->{ImagePrefix}, $imagefile), "\" width=", $width," height=", $height,"></p>";
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
 	};
@@ -847,7 +842,7 @@ sub process_download {
 	if (defined $id) {
 		print $file "</a>";
 	}
-	print $file " <a href=\"", File::Spec::Unix->catfile($self->{OutputDownloadFolder}, $downloadfile),".zip\">", $title,"</a><br>\n";
+	print $file " <a href=\"", File::Spec::Unix->catfile($self->{DownloadPrefix}, $downloadfile),".zip\">", $title,"</a><br>\n";
 	print $file Formatting::get_filesize($filesize), " | ", Formatting::get_date(localtime($filedate)), $compatibility, "</p>\n\n";
 }
 

@@ -39,8 +39,13 @@ use constant FALSE	=> 0;
 my $filename = "wimp.xml";
 
 my $OutputFolder = "output/";
-my $OutputImageFolder = "images/";
-my $OutputDownloadFolder = "files/";
+my $OutputPhpFolder = "static/wimp-prog/";
+my $OutputImageFolder = "images/wimp-prog/";
+my $OutputDownloadFolder = "files/wimp-prog/";
+
+my $LinkPrefix = "wimp-prog/";
+my $ImagePrefix = "../../images/wimp-prog/";
+my $DownloadPrefix = "../../files/wimp-prog/";
 
 my $MaxImageWidth = 500;
 
@@ -101,10 +106,11 @@ push(@BreadCrumbs, $ManualTitle);
 # Construct the output engine.
 
 my $OutputEngine = OutputHtml->new($ManualTitle, $IndexFilename, $ObjectIDs, $IconDetails, $MaxImageWidth, $OutputFolder, $OutputImageFolder, $OutputDownloadFolder,
-		$ImageFolder, $DownloadFolder, $CommonDownloadFolder, $ImageList, $DownloadList, Formatting::get_date(@Time), @BreadCrumbs);
+		$ImageFolder, $DownloadFolder, $CommonDownloadFolder, $ImageList, $DownloadList, $LinkPrefix, $ImagePrefix, $DownloadPrefix, Formatting::get_date(@Time), @BreadCrumbs);
 
 # Process the chapters, outputting a file for each.
 
+make_path(File::Spec->catfile($OutputFolder, $OutputPhpFolder));
 make_path(File::Spec->catfile($OutputFolder, $OutputImageFolder));
 make_path(File::Spec->catfile($OutputFolder, $OutputDownloadFolder));
 
@@ -118,7 +124,7 @@ foreach my $index ($manual->findnodes('/manual/index')) {
 	process_index($index, $manual);
 }
 
-$HtmlList->remove_obsolete_files($OutputFolder);
+$HtmlList->remove_obsolete_files(File::Spec->catfile($OutputFolder, $OutputPhpFolder));
 $ImageList->remove_obsolete_files(File::Spec->catfile($OutputFolder, $OutputImageFolder));
 $DownloadList->remove_obsolete_files(File::Spec->catfile($OutputFolder, $OutputDownloadFolder));
 
@@ -167,7 +173,7 @@ sub assemble_chapters {
 sub process_index {
 	my ($index, $manual) = @_;
 
-	my $filename = File::Spec->catfile($OutputFolder, $ObjectIDs->get_chapter_filename($index));
+	my $filename = File::Spec->catfile($OutputFolder, $OutputPhpFolder, $ObjectIDs->get_chapter_filename($index));
 
 	# Check that we haven't already tried to write a chapter of the same name.
 
@@ -205,7 +211,7 @@ sub process_chapter {
 
 	# Get the relative file name for the chapter.
 
-	my $filename = File::Spec->catfile($OutputFolder, $ObjectIDs->get_chapter_filename($chapter));
+	my $filename = File::Spec->catfile($OutputFolder, $OutputPhpFolder, $ObjectIDs->get_chapter_filename($chapter));
 
 	# Check that we haven't already tried to write a chapter of the same name.
 

@@ -253,6 +253,31 @@ sub get_chapter_filename {
 
 
 ##
+# Find the URI to use for a chapter or index.
+#
+# \param $chapter	The chapter to return the URI for.
+# \return		The URI of the chapter.
+
+sub get_chapter_uri {
+	my ($self, $chapter) = @_;
+
+	$self->validate_object_type($chapter, "chapter", "index");
+
+	my $uri = $chapter->findvalue('./uri');
+
+	if (!defined $uri || $uri eq "") {
+		$uri = $chapter->findvalue('./filename');
+	}
+
+	if (!defined $uri || $uri eq "") {
+		die "No URI for chapter.\n";
+	}
+
+	return $uri;
+}
+
+
+##
 # Get the title to use for a chapter.
 #
 # \param $chapter	The chapter to return the title for.
