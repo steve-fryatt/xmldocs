@@ -238,10 +238,11 @@ sub process_section {
 	if (defined($title) && $title ne "") {
 		my $id = $self->{ObjectIDs}->get_object_id($section);
 
-		print $file "<h2>";
+		print $file "<h2";
 		if (defined $id) {
-			print $file "<a name=\"", $id, "\">";
+			print $file " id=\"", $id, "\"";
 		}
+		print $file ">";
 		print $file $title;
 		if (defined $id) {
 			print $file "</a>";
@@ -502,10 +503,11 @@ sub process_table {
 
 	my @columns = undef;
 
-	print $file "<div class=\"titled\">";
+	print $file "<div class=\"titled\"";
 	if (defined $id) {
-		print $file "<a name=\"", $id, "\">";
+		print $file " id=\"", $id, "\"";
 	}
+	print $file ">";
 	print $file "<table class=\"doc\">\n";
 
 	foreach my $chunk ($table->childNodes()) {
@@ -664,10 +666,11 @@ sub process_code {
 
 	unlink $filename;
 
-	print $file "<div class=\"titled\">";
+	print $file "<div class=\"titled\"";
 	if (defined $id) {
-		print $file "<a name=\"", $id, "\">";
+		print $file " id=\"", $id, "\"";
 	}
+	print $file ">";
 	print $file "<div class=\"codeblock\">", $html, "</div>";
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
@@ -738,10 +741,11 @@ sub process_image {
 
 	undef $convert;
 
-	print $file "<div class=\"titled\">";
+	print $file "<div class=\"titled\"";
 	if (defined $id) {
-		print $file "<a name=\"", $id, "\">";
+		print $file " id=\"", $id, "\"";
 	}
+	print $file ">";
 	print $file "<p><img src=\"", File::Spec::Unix->catfile($self->{ImagePrefix}, $imagefile), "\" width=", $width," height=", $height,"></p>";
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
@@ -826,8 +830,11 @@ sub process_download {
 		$armv7_ok = TRUE;
 	}
 
-	print $file "<p class=\"download\">";
-	
+	print $file "<p class=\"download\"";
+	if (defined $id) {
+		print $file " id=\"", $id, "\"";
+	}
+	print $file ">";
 	$self->write_icon_image($file, 'zip');
 	if ($iyonix_ok) {
 		$self->write_icon_image($file, 'armv7', 'iyonix');
@@ -835,13 +842,7 @@ sub process_download {
 	if ($armv7_ok) {
 		$self->write_icon_image($file, 'iyonix', 'iyonix');
 	}
-	if (defined $id) {
-		print $file "<a name=\"", $id, "\">";
-	}
 	print $file "<b>", $caption, ":</b>";
-	if (defined $id) {
-		print $file "</a>";
-	}
 	print $file " <a href=\"", File::Spec::Unix->catfile($self->{DownloadPrefix}, $downloadfile),".zip\">", $title,"</a><br>\n";
 	print $file Formatting::get_filesize($filesize), " | ", Formatting::get_date(localtime($filedate)), $compatibility, "</p>\n\n";
 }
