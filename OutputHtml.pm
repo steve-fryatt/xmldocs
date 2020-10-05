@@ -244,9 +244,6 @@ sub process_section {
 		}
 		print $file ">";
 		print $file $title;
-		if (defined $id) {
-			print $file "</a>";
-		}
 		print $file "</h2>\n\n";
 	}
 
@@ -539,9 +536,6 @@ sub process_table {
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
 	};
-	if (defined $id) {
-		print $file "</a>";
-	}
 	print $file "</div>\n\n";
 }
 
@@ -675,9 +669,6 @@ sub process_code {
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
 	}
-	if (defined $id) {
-		print $file "</a>";
-	}
 	print $file "</div>\n\n";
 }
 
@@ -750,9 +741,6 @@ sub process_image {
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
 	};
-	if (defined $id) {
-		print $file "</a>";
-	}
 	print $file "</div>\n\n";
 }
 
