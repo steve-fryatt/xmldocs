@@ -746,7 +746,7 @@ sub process_image {
 		print $file " id=\"", $id, "\"";
 	}
 	print $file ">";
-	print $file "<p><img src=\"", File::Spec::Unix->catfile($self->{ImagePrefix}, $imagefile), "\" width=", $width," height=", $height,"></p>";
+	print $file "<p><img src=\"", File::Spec::Unix->catfile($self->{ImagePrefix}, $imagefile), "\" class=\"responsive\" width=", $width," height=", $height,"></p>";
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
 	};
