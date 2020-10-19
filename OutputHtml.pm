@@ -818,21 +818,36 @@ sub process_download {
 		$armv7_ok = TRUE;
 	}
 
-	print $file "<p class=\"download\"";
+	print $file "<div class=\"download\"";
 	if (defined $id) {
 		print $file " id=\"", $id, "\"";
 	}
-	print $file ">";
+	print $file ">\n";
+	print $file "<div class=\"title\">",$caption,"</div>\n";
+	
+	print $file "<div class=\"info\">The source code and files in this example are licenced under the EUPL v1.1.</div>\n";
+
+	print $file "<div class=\"file\">";
+
 	$self->write_icon_image($file, 'zip');
 	if ($iyonix_ok) {
-		$self->write_icon_image($file, 'armv7', 'iyonix');
+		$self->write_icon_image($file, 'armv7', 'compatibility');
 	}
 	if ($armv7_ok) {
-		$self->write_icon_image($file, 'iyonix', 'iyonix');
+		$self->write_icon_image($file, 'iyonix', 'compatibility');
 	}
-	print $file "<b>", $caption, ":</b>";
-	print $file " <a href=\"", File::Spec::Unix->catfile($self->{DownloadPrefix}, $downloadfile),".zip\">", $title,"</a><br>\n";
-	print $file Formatting::get_filesize($filesize), " | ", Formatting::get_date(localtime($filedate)), $compatibility, "</p>\n\n";
+		
+	print $file "<a href=\"", File::Spec::Unix->catfile($self->{DownloadPrefix}, $downloadfile), ".zip\" target=\"_blank\">", $title, "</a></div>\n";
+	
+	print $file "<div class=\"metadata\"><span class=\"metadata\">";
+	print $file Formatting::get_filesize($filesize), " | ", Formatting::get_date(localtime($filedate));
+	
+	if ($compatibility ne "") {
+		print $file "</span><span class=\"metadata-separator\">&nbsp;| </span><span class=\"metadata\">", $compatibility;
+	}
+		
+	print $file "</span></div>\n";
+	print $file "</div>\n\n";
 }
 
 
