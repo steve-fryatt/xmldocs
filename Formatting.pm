@@ -34,6 +34,17 @@ sub get_date {
 	return $day . $suffix . POSIX::strftime(" %B, %Y", @time);
 }
 
+##
+# Get a date in a format suitable for the CMS.
+#
+# \param @time		The time to convert.
+# \return		The date ad YYYY, M, D
+
+sub get_pagefoot_date {
+	my (@time) = @_;
+	
+	return sprintf("%d, %d, %d", $time[5] + 1900, $time[4] + 1, $time[3]);
+}
 
 ##
 # Get a filetype into a human-readable format.

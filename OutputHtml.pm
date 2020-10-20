@@ -102,7 +102,7 @@ sub write_footer {
 
 	print $file "<?php\n";
 	print $file "	echo \$Templates->SideBar();\n";
-	print $file "	echo \$Templates->PageEnd(\"", $self->{Time}, "\");\n";
+	print $file "	echo \$Templates->PageEnd(", $self->{Time}, ");\n";
 	print $file "?>\n\n";
 
 	print $file "</body>\n";

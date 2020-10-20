@@ -106,7 +106,7 @@ push(@BreadCrumbs, $ManualTitle);
 # Construct the output engine.
 
 my $OutputEngine = OutputHtml->new($ManualTitle, $IndexFilename, $ObjectIDs, $IconDetails, $MaxImageWidth, $OutputFolder, $OutputImageFolder, $OutputDownloadFolder,
-		$ImageFolder, $DownloadFolder, $CommonDownloadFolder, $ImageList, $DownloadList, $LinkPrefix, $ImagePrefix, $DownloadPrefix, Formatting::get_date(@Time), @BreadCrumbs);
+		$ImageFolder, $DownloadFolder, $CommonDownloadFolder, $ImageList, $DownloadList, $LinkPrefix, $ImagePrefix, $DownloadPrefix, Formatting::get_pagefoot_date(@Time), @BreadCrumbs);
 
 # Process the chapters, outputting a file for each.
 
