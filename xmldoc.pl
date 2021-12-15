@@ -21,6 +21,7 @@ use File::Find::Rule;
 use File::Copy;
 use File::Path qw/ make_path remove_tree /;
 use File::Spec;
+use Getopt::Long;
 
 use BuildZip;
 use FileHash;
@@ -36,18 +37,31 @@ use constant FALSE	=> 0;
 
 # Set up some constant values.
 
-my $filename = "wimp.xml";
+my $filename = "doc.xml";
 
 my $OutputFolder = "output/";
-my $OutputPhpFolder = "static/wimp-prog/";
-my $OutputImageFolder = "images/wimp-prog/";
-my $OutputDownloadFolder = "files/wimp-prog/";
+my $OutputPhpFolder = "static/docs/";
+my $OutputImageFolder = "images/docs/";
+my $OutputDownloadFolder = "files/docs/";
 
-my $LinkPrefix = "wimp-prog/";
-my $ImagePrefix = "../../images/wimp-prog/";
-my $DownloadPrefix = "../../files/wimp-prog/";
+my $LinkPrefix = "docs/";
+my $ImagePrefix = "../../images/docs/";
+my $DownloadPrefix = "../../files/docs/";
 
 my $MaxImageWidth = 500;
+
+# Process the command line options.
+
+GetOptions(
+	'source=s' => \$filename,
+	'output=s' => \$OutputFolder,
+	'php=s' => \$OutputPhpFolder,
+	'image=s' => \$OutputImageFolder,
+	'download=s' => \$OutputDownloadFolder,
+	'linkprefix=s' => \$LinkPrefix,
+	'imageprefix=s' => \$ImagePrefix,
+	'downloadprefix=s' => \$DownloadPrefix
+);
 
 my $parser = XML::LibXML->new();
 $parser->expand_entities(0);
