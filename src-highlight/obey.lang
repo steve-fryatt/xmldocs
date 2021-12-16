@@ -1,0 +1,15 @@
+# language definition for Obey
+
+comment start "\|"
+
+string delim "\"" "\""
+
+keyword = "Error|IconSprites|If|Obey|RMEnsure|RMLoad|RMRun|Run|Set|Then",
+"WimpSlot"
+
+#function = '(PROC|FN)([[:alpha:]]|_)[[:word:]]*(?=[[:blank:]]*\()'
+
+#include "symbols.lang"
+
+#number = '\<[+-]?((&[[:xdigit:]]+)|(([[:digit:]]*\.)?([[:digit:]]+([E][+-]?[[:digit:]]+)?)?))\>'
+

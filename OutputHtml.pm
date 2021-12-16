@@ -36,6 +36,8 @@ sub new {
 	$self->{OutputImageFolder} = shift;
 	$self->{OutputDownloadFolder} = shift;
 
+	$self->{SourceHighightDataFolder} = shift;
+
 	$self->{ImageFolder} = shift;
 	$self->{DownloadFolder} = shift;
 	$self->{CommonDownloadFolder} = shift;
@@ -635,6 +637,7 @@ sub process_code {
 	my ($self, $code, $file) = @_;
 
 	my $language = $code->findvalue('./@lang');
+	my $data_folder = $self->{SourceHighightDataFolder};
 
 	my $caption = undef;
 	my $id = $self->{ObjectIDs}->get_object_id($code);
@@ -655,7 +658,7 @@ sub process_code {
 
 	close $fh;
 
-	my $html = `source-highlight -i $filename --tab=8 --src-lang=$language --out-format=html-css --no-doc`;
+	my $html = `source-highlight -i $filename --tab=8 --data-dir=$data_folder --src-lang=$language --out-format=html-css --no-doc`;
 	chomp $html;
 
 	unlink $filename;
