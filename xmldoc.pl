@@ -48,6 +48,8 @@ my $LinkPrefix = "docs/";
 my $ImagePrefix = "../../images/docs/";
 my $DownloadPrefix = "../../files/docs/";
 
+my $OutputCmsFilename = "protected/docs/index.csv";
+
 my $MaxImageWidth = 500;
 
 # Process the command line options.
@@ -57,6 +59,7 @@ GetOptions(
 	'output=s' => \$OutputFolder,
 	'php=s' => \$OutputPhpFolder,
 	'image=s' => \$OutputImageFolder,
+	'cms=s' => \$OutputCmsFilename,
 	'download=s' => \$OutputDownloadFolder,
 	'linkprefix=s' => \$LinkPrefix,
 	'imageprefix=s' => \$ImagePrefix,
@@ -145,6 +148,7 @@ $HtmlList->remove_obsolete_files(File::Spec->catfile($OutputFolder, $OutputPhpFo
 $ImageList->remove_obsolete_files(File::Spec->catfile($OutputFolder, $OutputImageFolder));
 $DownloadList->remove_obsolete_files(File::Spec->catfile($OutputFolder, $OutputDownloadFolder));
 
+process_cms_index($manual);
 
 ##
 # Assemble sub chapters into the master DOM.
@@ -177,6 +181,29 @@ sub assemble_chapters {
 	}
 
 	$manual->toFile("dump.xml", 1);
+}
+
+
+##
+# Process an manual object to create the CMS index file.
+#
+# \param $manual	The manual we're working on.
+
+sub process_cms_index {
+	my ($manual) = @_;
+
+	my $filename = File::Spec->catfile($OutputFolder, $OutputCmsFilename);
+
+	print "Writing CMS Index to ", $filename, "...\n";
+
+	open(my $file, ">", $filename) || die "Couldn't open " . $filename . "\n";
+
+	foreach my $chapter ($manual->findnodes('/manual/chapter')) {
+		print $file $ObjectIDs->get_chapter_uri($chapter), ",",
+				$ObjectIDs->get_chapter_filename($chapter), "\n";
+	}
+
+	close($file);
 }
 
 
