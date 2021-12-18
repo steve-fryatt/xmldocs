@@ -1,4 +1,0 @@
-bbcbasic = bbcbasic.lang
-c = c.lang
-makefile = makefile.lang
-obey = obey.lang
