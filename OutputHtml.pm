@@ -72,6 +72,7 @@ sub new {
 	$self->{DownloadPrefix} = shift;
 
 	$self->{Time} = shift;
+	$self->{DownloadLicence} = shift;
 	$self->{BreadCrumbs} = \@_;
 
 	return $self;
@@ -850,7 +851,7 @@ sub process_download {
 	print $file ">\n";
 	print $file "<div class=\"title\">",$caption,"</div>\n";
 	
-	print $file "<div class=\"info\">The source code and files in this example are licenced under the EUPL v1.1.</div>\n";
+	print $file "<div class=\"info\">The source code and files in this example are made available under ", $self->{DownloadLicence}, ".</div>\n";
 
 	print $file "<div class=\"file\">";
 

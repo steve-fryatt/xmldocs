@@ -120,6 +120,10 @@ my $DownloadFolder = $ObjectIDs->get_value($manual, '/manual/resources/downloads
 my $CommonDownloadFolder = $ObjectIDs->get_value($manual, '/manual/resources/common', '');
 my $ChapterFolder = $ObjectIDs->get_value($manual, '/manual/resources/chapters', '');
 
+# Find the licence information.
+
+my $DownloadLicence = $ObjectIDs->get_value($manual, '/manual/licence', ' Version 1.2 of the European Union Public Licence');
+print "Found licence: ", $DownloadLicence, "\n";
 # Find the index filename
 
 my $IndexFilename = $ObjectIDs->get_value($manual, '/manual/index/filename', 'index.html');
@@ -148,7 +152,7 @@ my $OutputEngine = OutputHtml->new($ManualTitle, $IndexFilename, $ObjectIDs, $Ic
 		$MaxImageWidth, $OutputFolder, $OutputImageFolder, $OutputDownloadFolder,
 		$RealBin."/src-highlight", $ImageFolder, $DownloadFolder, $CommonDownloadFolder,
 		$ImageList, $DownloadList, $LinkPrefix, $ImagePrefix, $DownloadPrefix,
-		Formatting::get_pagefoot_date(@Time), @BreadCrumbs);
+		Formatting::get_pagefoot_date(@Time), $DownloadLicence, @BreadCrumbs);
 
 # Process the chapters, outputting a file for each.
 
