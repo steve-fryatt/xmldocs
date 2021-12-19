@@ -4,21 +4,28 @@ comment start "REM"
 
 string delim "\"" "\""
 
+function = '(PROC|FN)([[:word:]|`|@]+)'
+
+keyword = 'CHR\$|GET\$|INKEY\$|LEFT\$|MID\$|REPORT\$|RIGHT\$|STR\$|STRING\$'
 keyword = "ABS|ACS|ADVAL|AND|ASC|ASN|ATN|BGET|BPUT|BY|CALL|CASE|CHAIN",
-"CHR$|CIRCLE|CLEAR|CLG|CLOSE|CLS|COLOR|COLOUR|COS|COUNT|DATA|DEF|DEG",
+"CIRCLE|CLEAR|CLG|CLOSE|CLS|COLOR|COLOUR|COS|COUNT|DATA|DEF|DEG",
 "DIM|DIV|DRAW|ELLIPSE|ELSE|END|ENDCASE|ENDIF|ENDPROC|ENDWHILE|ENVELOPE",
-"EOF|EOR|ERL|ERR|ERROR|EVAL|EXIT|EXP|EXT|FILL|FOR|GCOL|GET|GET$|GOSUB",
-"GOTO|HIMEM|IF|INKEY|INKEY$|INPUT|INSTALL|INSTR|INT|LEFT$|LEN|LET|LINE",
-"LN|LOCAL|LOG|LOMEM|MID$|MOD|MODE|MOUSE|MOVE|NEXT|NOT|OF|OFF|ON|OPENIN",
+"EOF|EOR|ERL|ERR|ERROR|EVAL|EXIT|EXP|EXT|FILL|FOR|GCOL|GET|GOSUB",
+"GOTO|HIMEM|IF|INKEY|INPUT|INSTALL|INSTR|INT|LEN|LET|LINE",
+"LN|LOCAL|LOG|LOMEM|MOD|MODE|MOUSE|MOVE|NEXT|NOT|OF|OFF|ON|OPENIN",
 "OPENOUT|OPENUP|OR|ORIGIN|OSCLI|OTHERWISE|PAGE|PI|PLOT|POINT|POS|PRINT",
 "PRIVATE|PTR|QUIT|RAD|READ|RECTANGLE|REPEAT|REPORT|RESTORE|RETURN",
-"RIGHT$|RND|RUN|SGN|SIN|SOUND|SPC|SQR|STEP|STOP|STR$|STRING$|SUM|SWAP",
+"RND|RUN|SGN|SIN|SOUND|SPC|SQR|STEP|STOP|SUM|SWAP",
 "SYS|TAB|TAN|THEN|TIME|TINT|TO|TRACE|UNTIL|USR|VAL|VDU|VPOS|WAIT|WHEN",
 "WHILE|WIDTH"
 
-function = '(PROC|FN)([[:alpha:]]|_)[[:word:]]*(?=[[:blank:]]*\()'
+variable = '[[:alpha:]|_|`][[:word:]|`]*[%|$]?'
 
-include "symbols.lang"
+number = '([[:digit:]]*\.)?[[:digit:]]+(E[+-]?[[:digit:]]+)?',
+'&([[:xdigit:]])+',
+'%[01]+'
 
-number = '\<[+-]?((&[[:xdigit:]]+)|(([[:digit:]]*\.)?([[:digit:]]+([E][+-]?[[:digit:]]+)?)?))\>'
+symbol = "!","*","(",")","-","+","=",":",";",",",".","?","<",">","\|"
+
+# '\<[+-]?((&[[:xdigit:]]+)|(([[:digit:]]*\.)?([[:digit:]]+([E][+-]?[[:digit:]]+)?)?))\>'
 

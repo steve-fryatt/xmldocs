@@ -680,7 +680,7 @@ sub process_code {
 
 	close $fh;
 
-	my $html = `source-highlight -i $filename --tab=8 --data-dir=$data_folder --src-lang=$language --out-format=html-css --no-doc`;
+	my $html = `source-highlight -i $filename --tab=8 --data-dir=$data_folder --src-lang=$language --out-format=html-xmldoc --no-doc`;
 	chomp $html;
 
 	unlink $filename;
@@ -833,12 +833,12 @@ sub process_download {
 	my $armv7_ok = FALSE;
 
 	if ($download->findvalue('./@compatibility') eq "26bit") {
-		$compatibility = " | <em>26-bit only</em>";
+		$compatibility = "<em>26-bit only</em>";
 	} elsif ($download->findvalue('./@compatibility') eq "32bit") {
-		$compatibility = " | 26/32-bit neutral";
+		$compatibility = "26/32-bit neutral";
 		$iyonix_ok = TRUE;
 	} elsif ($download->findvalue('./@compatibility') eq "armv7") {
-		$compatibility = " | 26/32-bit neutral, ARMv7 OK";
+		$compatibility = "26/32-bit neutral, ARMv7 OK";
 		$iyonix_ok = TRUE;
 		$armv7_ok = TRUE;
 	}
@@ -868,7 +868,7 @@ sub process_download {
 	print $file Formatting::get_filesize($filesize), " | ", Formatting::get_date(localtime($filedate));
 	
 	if ($compatibility ne "") {
-		print $file "</span><span class=\"metadata-separator\">&nbsp;| </span><span class=\"metadata\">", $compatibility;
+		print $file "</span><span class=\"metadata-separator\">&nbsp;| </span><span class=\"metadata\"> ", $compatibility;
 	}
 		
 	print $file "</span></div>\n";
