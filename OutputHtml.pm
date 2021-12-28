@@ -442,7 +442,21 @@ sub create_link {
 		die "Missing external link.\n";
 	}
 
-	return "<a href=\"".$link->findvalue('./@href')."\" class=\"external\">".$link->to_literal."</a>";
+	my $external = $link->findvalue('./@external');
+
+	if (!defined $external || $external eq "") {
+		$external = "true";
+	}
+
+	if ($external eq "1" || $external eq "true") {
+		$external = " class=\"external\" target=\"_blank\"";
+	} elsif ($external eq "0" || $external eq "false") {
+		$external = "";
+	} else {
+		die "Bad external link value.\n";
+	}
+
+	return "<a href=\"".$link->findvalue('./@href')."\"".$external.">".$link->to_literal."</a>";
 }
 
 
