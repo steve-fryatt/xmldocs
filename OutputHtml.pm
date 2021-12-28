@@ -317,6 +317,7 @@ sub process_text {
 		'intro' => 'introduction',
 		'icon' => 'icon',
 		'key' => 'key',
+		'keyword' => 'keyword',
 		'maths' => 'maths',
 		'menu' => 'name',
 		'message' => 'name',
