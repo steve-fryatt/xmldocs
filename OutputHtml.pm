@@ -598,7 +598,7 @@ sub process_table_headings {
 		} elsif ($chunk->nodeType() == XML_ELEMENT_NODE) {
 			if ($chunk->nodeName() eq "col") {
 				if (!defined $chunk->findvalue('./@align') || $chunk->findvalue('./@align') eq "") {
-					die "Missing external link.\n";
+					die "Missing alignment.\n";
 				}
 
 				my $align = $chunk->findvalue('./@align');
