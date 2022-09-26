@@ -545,6 +545,7 @@ sub process_table {
 		print $file " id=\"", $id, "\"";
 	}
 	print $file ">";
+	print $file "<div class=\"tableblock\">";
 	print $file "<table class=\"doc\">\n";
 
 	foreach my $chunk ($table->childNodes()) {
@@ -572,7 +573,7 @@ sub process_table {
 		}
 	}
 
-	print $file "</table>";
+	print $file "</table></div>";
 	if (defined $caption) {
 		print $file "\n<p class=\"title\">", $caption, "</p>";
 	};
