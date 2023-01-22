@@ -301,12 +301,16 @@ sub process_section {
 sub process_text {
 	my ($self, $text, $file) = @_;
 
+	# Tags which translate straight into existing HTML tags.
+
 	my %tags = (
 		'cite' => 'cite',
 		'code' => 'code',
 		'em' => 'em',
 		'strong' => 'strong'
 	);
+
+	# Tags which translate into <span class="">...</span> constructs.
 
 	my %styles = (
 		'command' => 'command',
